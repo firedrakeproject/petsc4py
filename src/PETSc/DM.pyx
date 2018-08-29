@@ -411,14 +411,22 @@ cdef class DM(Object):
         CHKERR( DMAdaptLabel(self.dm, clbl, &newdm.dm) )
         return newdm
 
-    def adaptMetric(self, Vec metric, label=None):
-        cdef const char *cval = NULL
-        cdef PetscDMLabel clbl = NULL
-        label = str2bytes(label, &cval)
+    def adaptMetric(self, Vec metric, bdlabel=None, rglabel=None):
+	    # boundary tags
+        cdef const_char *cval = NULL
+        cdef PetscDMLabel cbdlbl = NULL
+        label = str2bytes(bdlabel, &cval)
         if cval == NULL: cval = b"" # XXX Should be fixed upstream
-        CHKERR( DMGetLabel(self.dm, cval, &clbl) )
+        CHKERR( DMGetLabel(self.dm, cval, &cbdlbl) )
+		# cell tags
+        cdef const_char *cval2 = NULL
+        cdef PetscDMLabel crglbl = NULL
+        label = str2bytes(rglabel, &cval2)
+        if cval2 == NULL: cval2 = b"" # XXX Should be fixed upstream
+        CHKERR( DMGetLabel(self.dm, cval2, &crglbl) )
+		#
         cdef DM newdm = DMPlex()
-        CHKERR( DMAdaptMetric(self.dm, metric.vec, clbl, &newdm.dm) )
+        CHKERR( DMAdaptMetric(self.dm, metric.vec, cbdlbl, crglbl, &newdm.dm) )
         return newdm
 
     def getLabel(self, name):
