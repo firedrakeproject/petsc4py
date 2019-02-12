@@ -13,6 +13,10 @@ cdef extern from * nogil:
     PetscDMType DMPATCH
     PetscDMType DMMOAB
     PetscDMType DMNETWORK
+    PetscDMType DMFOREST
+    PetscDMType DMP4EST
+    PetscDMType DMP8EST
+    PetscDMType DMSWARM
 
     ctypedef enum PetscDMBoundaryType"DMBoundaryType":
         DM_BOUNDARY_NONE
@@ -35,6 +39,9 @@ cdef extern from * nogil:
     int DMSetOptionsPrefix(PetscDM,char[])
     int DMSetFromOptions(PetscDM)
     int DMSetUp(PetscDM)
+
+    int DMGetDS(PetscDM,PetscDS*)
+    int DMSetDS(PetscDM,PetscDS)
 
     int DMGetBlockSize(PetscDM,PetscInt*)
     int DMSetVecType(PetscDM,PetscVecType)

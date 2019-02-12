@@ -4,7 +4,6 @@ class SNESType(object):
     NEWTONLS     = S_(SNESNEWTONLS)
     NEWTONTR     = S_(SNESNEWTONTR)
     PYTHON       = S_(SNESPYTHON)
-    TEST         = S_(SNESTEST)
     NRICHARDSON  = S_(SNESNRICHARDSON)
     KSPONLY      = S_(SNESKSPONLY)
     VINEWTONRSLS = S_(SNESVINEWTONRSLS)
@@ -55,6 +54,7 @@ class SNESConvergedReason(object):
     DIVERGED_LINE_SEARCH     = SNES_DIVERGED_LINE_SEARCH
     DIVERGED_INNER           = SNES_DIVERGED_INNER
     DIVERGED_LOCAL_MIN       = SNES_DIVERGED_LOCAL_MIN
+    DIVERGED_DTOL            = SNES_DIVERGED_DTOL
 
 # --------------------------------------------------------------------
 

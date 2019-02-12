@@ -176,6 +176,10 @@ class TestObjectDMDA(BaseTestObject, unittest.TestCase):
     FACTORY = 'create'
     TARGS = ([3,3,3],)
 
+class TestObjectDS(BaseTestObject, unittest.TestCase):
+    CLASS  = PETSc.DS
+    FACTORY = 'create'
+
 class TestObjectVec(BaseTestObject, unittest.TestCase):
     CLASS   = PETSc.Vec
     FACTORY = 'createSeq'
@@ -191,7 +195,7 @@ class TestObjectScatter(BaseTestObject, unittest.TestCase):
     def setUp(self):
         v1, v2 = PETSc.Vec().createSeq(0), PETSc.Vec().createSeq(0)
         i1, i2 = PETSc.IS().createGeneral([]), PETSc.IS().createGeneral([])
-        self.obj = PETSc.Scatter().create(v1, i1, v2, i2)
+        self.obj = PETSc.Scatter().createWithData(v1, i1, v2, i2)
         del v1, v2, i1, i2
 
 class TestObjectMat(BaseTestObject, unittest.TestCase):

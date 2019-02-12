@@ -13,6 +13,14 @@ class TAOType:
     OWLQN    = S_(TAOOWLQN)
     BMRM     = S_(TAOBMRM)
     BLMVM    = S_(TAOBLMVM)
+    BQNLS    = S_(TAOBQNLS)
+    BNCG     = S_(TAOBNCG)
+    BNLS     = S_(TAOBNLS)
+    BNTR     = S_(TAOBNTR)
+    BNTL     = S_(TAOBNTL)
+    BQNKLS   = S_(TAOBQNKLS)
+    BQNKTR   = S_(TAOBQNKTR)
+    BQNKTL   = S_(TAOBQNKTL)
     BQPIP    = S_(TAOBQPIP)
     GPCG     = S_(TAOGPCG)
     NM       = S_(TAONM)
@@ -149,18 +157,15 @@ cdef class TAO(Object):
         if kargs is None: kargs = {}
         self.set_attr("__objective__", (objective, args, kargs))
 
-    def setSeparableObjective(self, separable, Vec O=None,
-                              args=None, kargs=None):
+    def setResidual(self, residual, Vec R=None, args=None, kargs=None):
         """
         """
-        cdef PetscVec Ovec = NULL
-        if O is not None: Ovec = O.vec
-        CHKERR( TaoSetSeparableObjectiveRoutine(self.tao, Ovec,
-                                                TAO_SeparableObjective, NULL) )
-        CHKERR( PetscObjectCompose(self.obj[0], "@sepobjvec", <PetscObject>Ovec) )
+        cdef PetscVec Rvec = NULL
+        if R is not None: Rvec = R.vec
+        CHKERR( TaoSetResidualRoutine(self.tao, Rvec, TAO_Residual, NULL) )
         if args is None: args = ()
         if kargs is None: kargs = {}
-        self.set_attr("__separable__", (separable, args, kargs))
+        self.set_attr("__residual__", (residual, args, kargs))
 
     def setGradient(self, gradient, args=None, kargs=None):
         """
@@ -197,8 +202,7 @@ cdef class TAO(Object):
         if kargs is None: kargs = {}
         self.set_attr("__varbounds__", (varbounds, args, kargs))
 
-    def setConstraints(self, constraints, Vec C=None,
-                       args=None, kargs=None):
+    def setConstraints(self, constraints, Vec C=None, args=None, kargs=None):
         """
         """
         cdef PetscVec Cvec=NULL
@@ -279,10 +283,10 @@ cdef class TAO(Object):
         CHKERR( TaoComputeObjective(self.tao, x.vec, &f) )
         return toReal(f)
 
-    def computeSeparableObjective(self, Vec x, Vec f):
+    def computeResidual(self, Vec x, Vec f):
         """
         """
-        CHKERR( TaoComputeSeparableObjective(self.tao, x.vec, f.vec) )
+        CHKERR( TaoComputeResidual(self.tao, x.vec, f.vec) )
 
     def computeGradient(self, Vec x, Vec g):
         """

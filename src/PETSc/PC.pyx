@@ -44,6 +44,8 @@ class PCType(object):
     BDDC               = S_(PCBDDC)
     KACZMARZ           = S_(PCKACZMARZ)
     TELESCOPE          = S_(PCTELESCOPE)
+    LMVM               = S_(PCLMVM)
+    PATCH              = S_(PCPATCH)
 
 class PCSide(object):
     # native
@@ -102,6 +104,12 @@ class PCFieldSplitSchurFactType(object):
     UPPER                    = PC_FIELDSPLIT_SCHUR_FACT_UPPER
     FULL                     = PC_FIELDSPLIT_SCHUR_FACT_FULL
 
+class PCPatchConstructType(object):
+    STAR                     = PC_PATCH_STAR
+    VANKA                    = PC_PATCH_VANKA
+    USER                     = PC_PATCH_USER
+    PYTHON                   = PC_PATCH_PYTHON
+
 # --------------------------------------------------------------------
 
 cdef class PC(Object):
@@ -109,14 +117,15 @@ cdef class PC(Object):
     Type = PCType
     Side = PCSide
 
-    ASMType       = PCASMType
-    GASMType      = PCGASMType
-    MGType        = PCMGType
-    MGCycleType   = PCMGCycleType
-    GAMGType      = PCGAMGType
-    CompositeType = PCCompositeType
-    SchurFactType = PCFieldSplitSchurFactType
-    SchurPreType  = PCFieldSplitSchurPreType
+    ASMType            = PCASMType
+    GASMType           = PCGASMType
+    MGType             = PCMGType
+    MGCycleType        = PCMGCycleType
+    GAMGType           = PCGAMGType
+    CompositeType      = PCCompositeType
+    SchurFactType      = PCFieldSplitSchurFactType
+    SchurPreType       = PCFieldSplitSchurPreType
+    PatchConstructType = PCPatchConstructType
 
     # --- xxx ---
 
@@ -191,6 +200,12 @@ cdef class PC(Object):
         if flag:
             cflag = PETSC_TRUE
         CHKERR( PCSetUseAmat(self.pc, cflag) )
+
+    def setReusePreconditioner(self, flag):
+        cdef PetscBool cflag = PETSC_FALSE
+        if flag:
+            cflag = PETSC_TRUE
+        CHKERR( PCSetReusePreconditioner(self.pc, cflag) )
 
     def setUp(self):
         CHKERR( PCSetUp(self.pc) )
@@ -440,6 +455,17 @@ cdef class PC(Object):
             CHKERR( PetscFree(p) )
         return subksp
 
+    def getFieldSplitSchurGetSubKSP(self):
+        cdef PetscInt i = 0, n = 0
+        cdef PetscKSP *p = NULL
+        cdef object subksp = None
+        try:
+            CHKERR( PCFieldSplitSchurGetSubKSP(self.pc, &n, &p) )
+            subksp = [ref_KSP(p[i]) for i from 0 <= i <n]
+        finally:
+            CHKERR( PetscFree(p) )
+        return subksp
+
     def setFieldSplitSchurFactType(self, ctype):
         cdef PetscPCFieldSplitSchurFactType cval = ctype
         CHKERR( PCFieldSplitSetSchurFactType(self.pc, cval) )
@@ -449,12 +475,6 @@ cdef class PC(Object):
         cdef PetscMat pmat = NULL
         if pre is not None: pmat = pre.mat
         CHKERR( PCFieldSplitSetSchurPre(self.pc, pval, pmat) )
-
-    def setReusePreconditioner(self, flag):
-        cdef PetscBool cflag = PETSC_FALSE
-        if flag:
-            cflag = PETSC_TRUE
-        CHKERR( PCSetReusePreconditioner(self.pc, cflag) )
 
     # --- COMPOSITE ---
 
@@ -497,6 +517,10 @@ cdef class PC(Object):
         cdef PetscInt levels = 0
         CHKERR( PCMGGetLevels(self.pc, &levels) )
         return toInt(levels)
+
+    def setMGLevels(self, levels):
+        cdef PetscInt clevels = asInt(levels)
+        CHKERR( PCMGSetLevels(self.pc, clevels, NULL) )
 
     def getMGCoarseSolve(self):
         cdef KSP ksp = KSP()
@@ -643,6 +667,70 @@ cdef class PC(Object):
         for i from 0 <= i < n: cisfields[i] = (<IS?>isfields[i]).iset
         CHKERR( PCBDDCSetDofsSplittingLocal(self.pc, <PetscInt>n, cisfields) )
 
+    # --- Patch ---
+    def setPatchCellNumbering(self, Section sec not None):
+        CHKERR( PCPatchSetCellNumbering(self.pc, sec.sec) )
+
+    def setPatchDiscretisationInfo(self, dms, bs,
+                                   cellNodeMaps,
+                                   subspaceOffsets,
+                                   ghostBcNodes,
+                                   globalBcNodes):
+        cdef PetscInt numSubSpaces
+        cdef PetscInt numGhostBcs, numGlobalBcs
+        cdef PetscInt *nodesPerCell = NULL
+        cdef const_PetscInt **ccellNodeMaps = NULL
+        cdef PetscDM *cdms = NULL
+        cdef PetscInt *cbs = NULL
+        cdef PetscInt *csubspaceOffsets = NULL
+        cdef PetscInt *cghostBcNodes = NULL
+        cdef PetscInt *cglobalBcNodes = NULL
+        cdef PetscInt i
+
+        bs = iarray_i(bs, &numSubSpaces, &cbs)
+        ghostBcNodes = iarray_i(ghostBcNodes, &numGhostBcs, &cghostBcNodes)
+        globalBcNodes = iarray_i(globalBcNodes, &numGlobalBcs, &cglobalBcNodes)
+        subspaceOffsets = iarray_i(subspaceOffsets, NULL, &csubspaceOffsets)
+
+        CHKERR( PetscMalloc(<size_t>numSubSpaces*sizeof(PetscInt), &nodesPerCell) )
+        CHKERR( PetscMalloc(<size_t>numSubSpaces*sizeof(PetscDM), &cdms) )
+        CHKERR( PetscMalloc(<size_t>numSubSpaces*sizeof(PetscInt*), &ccellNodeMaps) )
+        for i in range(numSubSpaces):
+            cdms[i] = (<DM?>dms[i]).dm
+            _, nodes = asarray(cellNodeMaps[i]).shape
+            cellNodeMaps[i] = iarray_i(cellNodeMaps[i], NULL, <PetscInt**>&(ccellNodeMaps[i]))
+            nodesPerCell[i] = asInt(nodes)
+
+        # TODO: refactor on the PETSc side to take ISes?
+        CHKERR( PCPatchSetDiscretisationInfo(self.pc, numSubSpaces,
+                                             cdms, cbs, nodesPerCell,
+                                             ccellNodeMaps, csubspaceOffsets,
+                                             numGhostBcs, cghostBcNodes,
+                                             numGlobalBcs, cglobalBcNodes) )
+        CHKERR( PetscFree(nodesPerCell) )
+        CHKERR( PetscFree(cdms) )
+        CHKERR( PetscFree(ccellNodeMaps) )
+
+    def setPatchComputeOperator(self, operator, args=None, kargs=None):
+        if args is  None: args  = ()
+        if kargs is None: kargs = {}
+        context = (operator, args, kargs)
+        self.set_attr("__patch_compute_operator__", context)
+        CHKERR( PCPatchSetComputeOperator(self.pc, PCPatch_ComputeOperator, <void*>context) )
+
+    def setPatchConstructType(self, typ, operator=None, args=None, kargs=None):
+        if args is  None: args  = ()
+        if kargs is None: kargs = {}
+
+        if typ in {PC.PatchConstructType.PYTHON, PC.PatchConstructType.USER} and operator is None:
+            raise ValueError("Must provide operator for USER or PYTHON type")
+        if operator is not None:
+            context = (operator, args, kargs)
+        else:
+            context = None
+        self.set_attr("__patch_construction_operator__", context)
+        CHKERR( PCPatchSetConstructType(self.pc, typ, PCPatch_UserConstructOperator, <void*>context) )
+
 # --------------------------------------------------------------------
 
 del PCType
@@ -655,5 +743,6 @@ del PCGAMGType
 del PCCompositeType
 del PCFieldSplitSchurPreType
 del PCFieldSplitSchurFactType
+del PCPatchConstructType
 
 # --------------------------------------------------------------------

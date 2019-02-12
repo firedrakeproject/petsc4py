@@ -43,6 +43,8 @@ cdef extern from * nogil:
     PetscPCType PCBDDC
     PetscPCType PCKACZMARZ
     PetscPCType PCTELESCOPE
+    PetscPCType PCLMVM
+    PetscPCType PCPATCH
 
     ctypedef enum PetscPCSide "PCSide":
         PC_SIDE_DEFAULT
@@ -98,6 +100,12 @@ cdef extern from * nogil:
         PC_FIELDSPLIT_SCHUR_FACT_LOWER
         PC_FIELDSPLIT_SCHUR_FACT_UPPER
         PC_FIELDSPLIT_SCHUR_FACT_FULL
+
+    ctypedef enum PetscPCPatchConstructType "PCPatchConstructType":
+        PC_PATCH_STAR
+        PC_PATCH_VANKA
+        PC_PATCH_USER
+        PC_PATCH_PYTHON
 
     int PCCreate(MPI_Comm,PetscPC*)
     int PCDestroy(PetscPC*)
@@ -187,6 +195,7 @@ cdef extern from * nogil:
     int PCFieldSplitSetFields(PetscPC,char[],PetscInt,PetscInt*,PetscInt*)
     int PCFieldSplitSetIS(PetscPC,char[],PetscIS)
     int PCFieldSplitGetSubKSP(PetscPC,PetscInt*,PetscKSP*[])
+    int PCFieldSplitSchurGetSubKSP(PetscPC,PetscInt*,PetscKSP*[])
     int PCFieldSplitSetSchurPre(PetscPC,PetscPCFieldSplitSchurPreType,PetscMat)
     int PCFieldSplitSetSchurFactType(PetscPC,PetscPCFieldSplitSchurFactType)
     #int PCFieldSplitGetSchurBlocks(PetscPC,PetscMat*,PetscMat*,PetscMat*,PetscMat*)
@@ -215,6 +224,7 @@ cdef extern from * nogil:
     int PCMGSetRhs(PetscPC,PetscInt,PetscVec)
     int PCMGSetX(PetscPC,PetscInt,PetscVec)
     int PCMGSetR(PetscPC,PetscInt,PetscVec)
+    int PCMGSetLevels(PetscPC,PetscInt,MPI_Comm*)
     int PCMGGetLevels(PetscPC,PetscInt*)
     int PCMGSetCycleType(PetscPC,PetscPCMGCycleType)
     int PCMGSetCycleTypeOnLevel(PetscPC,PetscInt,PetscPCMGCycleType)
@@ -232,6 +242,24 @@ cdef extern from * nogil:
     int PCBDDCSetDofsSplitting(PetscPC,PetscInt,PetscIS[])
     int PCBDDCSetDofsSplittingLocal(PetscPC,PetscInt,PetscIS[])
 
+    # --- Patch ---
+    ctypedef int (*PetscPCPatchComputeOperator)(PetscPC,
+                                                PetscInt,
+                                                PetscMat,
+                                                PetscIS,
+                                                PetscInt,
+                                                const_PetscInt*,
+                                                void*) except PETSC_ERR_PYTHON
+    ctypedef int (*PetscPCPatchConstructOperator)(PetscPC,
+                                                  PetscInt*,
+                                                  PetscIS**,
+                                                  PetscIS*,
+                                                  void*) except PETSC_ERR_PYTHON
+    int PCPatchSetCellNumbering(PetscPC, PetscSection)
+    int PCPatchSetDiscretisationInfo(PetscPC, PetscInt, PetscDM*, PetscInt*, PetscInt*, const_PetscInt**, const_PetscInt*, PetscInt, const_PetscInt*, PetscInt, const_PetscInt*)
+    int PCPatchSetComputeOperator(PetscPC, PetscPCPatchComputeOperator, void*)
+    int PCPatchSetConstructType(PetscPC, PetscPCPatchConstructType, PetscPCPatchConstructOperator, void*)
+
 # --------------------------------------------------------------------
 
 cdef extern from "libpetsc4py.h":
@@ -241,3 +269,51 @@ cdef extern from "libpetsc4py.h":
     int PCPythonSetType(PetscPC,char[])
 
 # --------------------------------------------------------------------
+
+cdef inline PC ref_PC(PetscPC pc):
+    cdef PC ob = <PC> PC()
+    ob.pc = pc
+    PetscINCREF(ob.obj)
+    return ob
+
+cdef int PCPatch_ComputeOperator(
+    PetscPC pc,
+    PetscInt point,
+    PetscMat mat,
+    PetscIS cells,
+    PetscInt ndof,
+    const_PetscInt *dofmap,
+    void *ctx) except PETSC_ERR_PYTHON with gil:
+    cdef Mat Mat = ref_Mat(mat)
+    cdef PC Pc = ref_PC(pc)
+    cdef IS Is = ref_IS(cells)
+    cdef object context = Pc.get_attr("__patch_compute_operator__")
+    if context is None and ctx != NULL: context = <object>ctx
+    assert context is not None and type(context) is tuple
+    (op, args, kargs) = context
+    cdef PetscInt[:] pydofs = <PetscInt[:ndof]>dofmap
+    op(Pc, toInt(point), Mat, Is, asarray(pydofs), *args, **kargs)
+    return 0
+
+
+cdef int PCPatch_UserConstructOperator(
+    PetscPC pc,
+    PetscInt *n,
+    PetscIS **userIS,
+    PetscIS *userIterationSet,
+    void *ctx) except PETSC_ERR_PYTHON with gil:
+    cdef PC Pc = ref_PC(pc)
+    cdef PetscInt i
+    cdef object context = Pc.get_attr("__patch_construction_operator__")
+    if context is None and ctx != NULL: context = <object>ctx
+    assert context is not None and type(context) is tuple
+    (op, args, kargs) = context
+    (patches, iterationSet) = op(Pc, *args, **kargs)
+    n[0] = len(patches)
+    CHKERR(PetscMalloc(<size_t>n[0]*sizeof(PetscIS), userIS))
+    for i in range(n[0]):
+        userIS[0][i] = (<IS?>patches[i]).iset
+        PetscINCREF(<PetscObject*>&(userIS[0][i]))
+    userIterationSet[0] = (<IS?>iterationSet).iset
+    PetscINCREF(<PetscObject*>&(userIterationSet[0]))
+    return 0
