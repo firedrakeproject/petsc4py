@@ -38,17 +38,10 @@ cdef extern from * nogil:
         DMSTAG_FRONT_UP_RIGHT
 
 
-    int DMStagCreateND(MPI_Comm,
-                     PetscInt,PetscInt,PetscInt,PetscInt,PetscInt,  # dim, dof0, dof1, dof2, dof3
-                     PetscInt,PetscInt,PetscInt,                    # M, N, P
-                     PetscInt,PetscInt,PetscInt,                    # m, n, p
-                     PetscInt[],PetscInt[],PetscInt[],              # lx, ly, lz
-                     PetscDMBoundaryType,                           # bx
-                     PetscDMBoundaryType,                           # by
-                     PetscDMBoundaryType,                           # bz
-                     PetscDMStagStencilType,                        # stencil type
-                     PetscInt,                                      # stencil width
-                     PetscDM*)
+    int DMStagCreate1d(MPI_Comm,PetscDMBoundaryType,PetscInt,PetscInt,PetscInt,PetscDMStagStencilType,PetscInt,const_PetscInt[],PetscDM*)
+    int DMStagCreate2d(MPI_Comm,PetscDMBoundaryType,PetscDMBoundaryType,PetscInt,PetscInt,PetscInt,PetscInt,PetscInt,PetscInt,PetscInt,PetscDMStagStencilType,PetscInt,const_PetscInt[],const_PetscInt[],PetscDM*)
+    int DMStagCreate3d(MPI_Comm,PetscDMBoundaryType,PetscDMBoundaryType,PetscDMBoundaryType,PetscInt,PetscInt,PetscInt,PetscInt,PetscInt,PetscInt,PetscInt,PetscInt,PetscInt,PetscInt,PetscDMStagStencilType,PetscInt,const_PetscInt[],const_PetscInt[],const_PetscInt[],PetscDM*)
+
 
     int DMStagGetCorners(PetscDM,PetscInt*,PetscInt*,PetscInt*,PetscInt*,PetscInt*,PetscInt*,PetscInt*,PetscInt*,PetscInt*)
     int DMStagGetGhostCorners(PetscDM,PetscInt*,PetscInt*,PetscInt*,PetscInt*,PetscInt*,PetscInt*)
@@ -69,7 +62,7 @@ cdef extern from * nogil:
     int DMStagSetBoundaryTypes(PetscDM,PetscDMBoundaryType,PetscDMBoundaryType,PetscDMBoundaryType)
     # int DMStagSetStencilWidth(PetscDM,PetscInt) # NOT YET EXISTING
     # int DMStagSetGhostType(PetscDM,PetscDMStagStencilType)
-    # int DMStagSetOwnershipRanges(PetscDM,const_PetscInt*[],const_PetscInt*[],const_PetscInt*[]) #Something weird/broken happening here...
+    # int DMStagSetOwnershipRanges(PetscDM,const_PetscInt[],const_PetscInt[],const_PetscInt[])
 
     int DMStagGetLocationSlot(PetscDM,PetscDMStagStencilLocation,PetscInt,PetscInt*)
     int DMStagGetLocationDOF(PetscDM,PetscDMStagStencilLocation,PetscInt*)
@@ -87,14 +80,17 @@ cdef extern from * nogil:
     int DMStagVecSplitToDMDA(PetscDM,PetscVec,PetscDMStagStencilLocation,PetscInt,PetscDM*,PetscVec*)
     int DMStagMigrateVec(PetscDM,PetscVec,PetscDM,PetscVec)
 
+#int DMStagMatSetValuesStencil(PetscDM,PetscMat,PetscInt,PetscDMStagStencil[],PetscInt,PetscDMStagStencil[],PetscScalar[],PetscInsertMode)
+#int DMStagVecGetValuesStencil(PetscDM,PetscVec,PetscInt,PetscDMStagStencil[],PetscScalar[])
+#int DMStagVecSetValuesStencil(PetscDM,PetscVec,PetscInt,PetscDMStagStencil[],PetscScalar[],PetscInsertMode)
 
-
-
-# NEED TO ADD VEC GET ARRAY
-# NEED TO ADD VEC/MAT SET VALUES STENCIL
 # NEED TO ADD DMStagStencil
-# NEED TO ADD SOME COORDINATES STUFF
-# ALSO DM PRODUCT?
+#    ctypedef struct PetscDMStagStencil "DMStagStencil":
+#        PetscInt k,j,i,c
+#        PetscDMStagStencilLocation loc
+
+
+# ALSO DM PRODUCT STUFF?
 
 
 
@@ -113,6 +109,40 @@ cdef inline object toStagStencil(PetscDMStagStencilType stype):
     if   stype == DMSTAG_STENCIL_STAR:  return "star"
     elif stype == DMSTAG_STENCIL_BOX:   return "box"
     elif stype == DMSTAG_STENCIL_NONE:  return "none"
+
+cdef inline PetscDMStagStencilLocation asStagStencilLocation(object stencil_location) \
+    except <PetscDMStagStencilLocation>(-1):
+    if isinstance(stencil_location, str):
+        if   stencil_location == "null":                return DMSTAG_NULL_LOCATION
+        elif stencil_location == "back_down_left":      return DMSTAG_BACK_DOWN_LEFT
+        elif stencil_location == "back_down":           return DMSTAG_BACK_DOWN
+        elif stencil_location == "back_down_right":     return DMSTAG_BACK_DOWN_RIGHT
+        elif stencil_location == "back_left":           return DMSTAG_BACK_LEFT
+        elif stencil_location == "back":                return DMSTAG_BACK
+        elif stencil_location == "back_right":          return DMSTAG_BACK_RIGHT
+        elif stencil_location == "back_up_left":        return DMSTAG_BACK_UP_LEFT
+        elif stencil_location == "back_up":             return DMSTAG_BACK_UP
+        elif stencil_location == "back_up_right":       return DMSTAG_BACK_UP_RIGHT
+        elif stencil_location == "down_left":           return DMSTAG_DOWN_LEFT
+        elif stencil_location == "down":                return DMSTAG_DOWN
+        elif stencil_location == "down_right":          return DMSTAG_DOWN_RIGHT
+        elif stencil_location == "left":                return DMSTAG_LEFT
+        elif stencil_location == "element":             return DMSTAG_ELEMENT
+        elif stencil_location == "right":               return DMSTAG_RIGHT
+        elif stencil_location == "up_left":             return DMSTAG_UP_LEFT
+        elif stencil_location == "up":                  return DMSTAG_UP
+        elif stencil_location == "up_right":            return DMSTAG_UP_RIGHT
+        elif stencil_location == "front_down_left":     return DMSTAG_FRONT_DOWN_LEFT
+        elif stencil_location == "front_down":          return DMSTAG_FRONT_DOWN
+        elif stencil_location == "front_down_right":    return DMSTAG_FRONT_DOWN_RIGHT
+        elif stencil_location == "front_left":          return DMSTAG_FRONT_LEFT
+        elif stencil_location == "front":               return DMSTAG_FRONT
+        elif stencil_location == "front_right":         return DMSTAG_FRONT_RIGHT
+        elif stencil_location == "front_up_left":       return DMSTAG_FRONT_UP_LEFT
+        elif stencil_location == "front_up":            return DMSTAG_FRONT_UP
+        elif stencil_location == "front_up_right":      return DMSTAG_FRONT_UP_RIGHT
+        else: raise ValueError("unknown stencil location type: %s" % stencil_location)
+    return stencil_location
 
 
 cdef inline PetscInt asStagDims(dims,
@@ -218,7 +248,95 @@ cdef inline tuple toStagOwnershipRanges(PetscInt dim,
 
 # HOW SHOULD VEC GET ARRAY WORK FOR DMSTAG?
 # NEEDS TO TAKE INTO ACCOUNT DUMMY/GHOST ENTRIES...
+cdef class _DMStag_Vec_array(object):
 
+    cdef _Vec_buffer vecbuf
+    cdef readonly tuple starts, sizes, nextra
+    cdef readonly tuple shape, strides
+    cdef readonly ndarray array
+
+    def __cinit__(self, DMStag da, Vec vec, bint DOF=False):
+        #
+        cdef PetscInt dim=0, dof=0
+        CHKERR( DMDAGetInfo(da.dm,
+                            &dim, NULL, NULL, NULL, NULL, NULL, NULL,
+                            &dof, NULL, NULL, NULL, NULL, NULL) )
+        cdef PetscInt lxs=0, lys=0, lzs=0
+        cdef PetscInt lxm=0, lym=0, lzm=0
+        CHKERR( DMDAGetCorners(da.dm,
+                               &lxs, &lys, &lzs,
+                               &lxm, &lym, &lzm) )
+        cdef PetscInt gxs=0, gys=0, gzs=0
+        cdef PetscInt gxm=0, gym=0, gzm=0
+        CHKERR( DMDAGetGhostCorners(da.dm,
+                                    &gxs, &gys, &gzs,
+                                    &gxm, &gym, &gzm) )
+        #
+        cdef PetscInt n=0
+        CHKERR( VecGetLocalSize(vec.vec, &n) )
+        cdef PetscInt xs, ys, zs, xm, ym, zm
+        if (n == lxm*lym*lzm*dof):
+            xs, ys, zs = lxs, lys, lzs
+            xm, ym, zm = lxm, lym, lzm
+        elif (n == gxm*gym*gzm*dof):
+            xs, ys, zs = gxs, gys, gzs
+            xm, ym, zm = gxm, gym, gzm
+        else:
+            raise ValueError(
+                "Vector local size %d is not compatible "
+                "with DMDA local sizes %s"
+                % (<Py_ssize_t>n, toDims(dim, lxm, lym, lzm)))
+        #
+        cdef tuple starts = toDims(dim, xs, ys, zs)
+        cdef tuple sizes  = toDims(dim, xm, ym, zm)
+        cdef Py_ssize_t k = <Py_ssize_t>sizeof(PetscScalar)
+        cdef Py_ssize_t f = <Py_ssize_t>dof
+        cdef Py_ssize_t d = <Py_ssize_t>dim
+        cdef tuple shape   = toDims(dim, xm, ym, zm)
+        cdef tuple strides = (k*f, k*f*xm, k*f*xm*ym)[:d]
+        if DOF or f > 1: shape   += (f,)
+        if DOF or f > 1: strides += (k,)
+        #
+        self.vecbuf = _Vec_buffer(vec)
+        self.starts = starts
+        self.sizes = sizes
+        self.shape = shape
+        self.strides = strides
+
+    cdef int acquire(self) except -1:
+        self.vecbuf.acquire()
+        if self.array is None:
+            self.array = asarray(self.vecbuf)
+            self.array.shape = self.shape
+            self.array.strides = self.strides
+        return 0
+
+    cdef int release(self) except -1:
+        self.vecbuf.release()
+        self.array = None
+        return 0
+
+    #
+
+    def __getitem__(self, index):
+        self.acquire()
+        index = adjust_index_exp(self.starts, index)
+        return self.array[index]
+
+    def __setitem__(self, index, value):
+        self.acquire()
+        index = adjust_index_exp(self.starts, index)
+        self.array[index] = value
+
+    # 'with' statement (PEP 343)
+
+    def __enter__(self):
+        self.acquire()
+        return self
+
+    def __exit__(self, *exc):
+        self.release()
+        return None
 
 
 # --------------------------------------------------------------------

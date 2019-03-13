@@ -528,37 +528,6 @@ DMDACreateND(MPI_Comm comm,
 
 /* ---------------------------------------------------------------- */
 
-
-static PetscErrorCode
-DMStagCreateND(MPI_Comm comm,
-             PetscInt dim,PetscInt dof0, PetscInt dof1, PetscInt dof2, PetscInt dof3, 
-             PetscInt M,PetscInt N,PetscInt P,
-             PetscInt m,PetscInt n,PetscInt p,
-             const PetscInt lx[],const PetscInt ly[],const PetscInt lz[],
-             DMBoundaryType bx,DMBoundaryType by,DMBoundaryType bz,
-             DMStagStencilType stencil_type,PetscInt stencil_width,
-             DM *dm)
-{
-  DM             da;
-  PetscErrorCode ierr;
-  PetscFunctionBegin;
-  PetscValidPointer(dm,18);
-  ierr = DMCreate(comm,&da);CHKERRQ(ierr);
-  ierr = DMSetDimension(da,dim);CHKERRQ(ierr); // POINTERS HERE?
-  ierr = DMSetType(da,DMSTAG);CHKERRQ(ierr); // POINTERS HERE?
-  ierr = DMStagSetDof(da,dof0,dof1,dof2,dof3);CHKERRQ(ierr);
-  ierr = DMStagSetGlobalSizes(da,M,N,P);CHKERRQ(ierr);
-  ierr = DMStagSetNumRanks(da,m,n,p);CHKERRQ(ierr);
-  ierr = DMStagSetOwnershipRanges(da,lx,ly,lz);CHKERRQ(ierr);
-  ierr = DMStagSetBoundaryTypes(da,bx,by,bz);CHKERRQ(ierr);
-  //ierr = DMStagSetGhostType(da,stencil_type);CHKERRQ(ierr);
-  //ierr = DMStagSetStencilWidth(da,stencil_width);CHKERRQ(ierr); //DOESNT EXIST YET
-  *dm = (DM)da;
-  PetscFunctionReturn(0);
-}
-
-/* ---------------------------------------------------------------- */
-
 #endif/* PETSC4PY_CUSTOM_H*/
 
 /*

@@ -46,87 +46,68 @@ cdef class DMStag(DM):
     StencilLocation   = DMStagStencilLocation
 # ADD DMStagStencil
 
+    def create(self,dim,dofs,sizes,boundary_types,stencil_type,stencil_width,proc_sizes=None,ownership_ranges=None,comm=None):
+        
+        # ndim
+        cdef PetscInt ndim = asInt(dim)
+        
+        # sizes
+        cdef tuple gsizes = tuple(sizes)
+        cdef PetscInt nsizes=PETSC_DECIDE, M=1, N=1, P=1
+        nsizes = asStagDims(gsizes, &M, &N, &P)
+        assert(nsizes==ndim)
+           
+        # dofs
+        cdef tuple cdofs = tuple(dofs)
+        cdef PetscInt ndofs=PETSC_DECIDE, dof0=1, dof1=0, dof2=0, dof3=0
+        ndofs = asDofs(cdofs, &dof0, &dof1, &dof2, &dof3)
+        assert(ndofs==ndim+1)
 
-    def create(self, dim=None, dofs=None,
-               sizes=None, proc_sizes=None, boundary_type=None,
-               stencil_type=None, stencil_width=None,
-               bint setup=True, ownership_ranges=None, comm=None):
-        #
-        cdef object arg = None
-        try: arg = tuple(dim)
-        except TypeError: pass
-        else: dim, sizes = None, arg
-        #
-        cdef PetscInt ndim = PETSC_DECIDE
-        cdef PetscInt M = 1, m = PETSC_DECIDE, *lx = NULL
-        cdef PetscInt N = 1, n = PETSC_DECIDE, *ly = NULL
-        cdef PetscInt P = 1, p = PETSC_DECIDE, *lz = NULL
+        # boundary types
         cdef PetscDMBoundaryType btx = DM_BOUNDARY_NONE
         cdef PetscDMBoundaryType bty = DM_BOUNDARY_NONE
         cdef PetscDMBoundaryType btz = DM_BOUNDARY_NONE
-        cdef PetscDMStagStencilType stype  = DMSTAG_STENCIL_BOX
-        cdef PetscInt             swidth = PETSC_DECIDE
+        asBoundary(boundary_types, &btx, &bty, &btz)
         
-        # grid and proc sizes
-        cdef object gsizes = sizes
-        cdef object psizes = proc_sizes
-        cdef PetscInt gdim = PETSC_DECIDE
-        cdef PetscInt pdim = PETSC_DECIDE
-        if sizes is not None:
-            gdim = asStagDims(gsizes, &M, &N, &P)
-        if psizes is not None:
-            pdim = asStagDims(psizes, &m, &n, &p)
-        if gdim>=0 and pdim>=0:
-            assert gdim == pdim
-            
-        # dofs
-        cdef PetscInt dof0=1, dof1=0, dof2=0, dof3=0
-        cdef object pdofs = dofs
-        if dofs is not None:
-            asDofs(pdofs, &dof0, &dof1, &dof2, &dof3)
+        # stencil
+        cdef PetscInt swidth = asInt(stencil_width)
+        cdef PetscDMStagStencilType stype = asStagStencil(stencil_type)
 
-        # dim
-        if dim is not None: ndim = asInt(dim)
-        if ndim==PETSC_DECIDE: ndim = gdim
-        
-        # vertex distribution
-        if ownership_ranges is not None:
-            ownership_ranges = asStagOwnershipRanges(ownership_ranges,
-                                                 ndim, &m, &n, &p,
-                                                 &lx, &ly, &lz)
-                                                 
-        # periodicity, stencil type & width
-        if boundary_type is not None:
-            asBoundary(boundary_type, &btx, &bty, &btz)
-        if stencil_type is not None:
-            stype = asStagStencil(stencil_type)
-        if stencil_width is not None:
-            swidth = asInt(stencil_width)
-        if setup and swidth == PETSC_DECIDE: swidth = 0
-        
-        # create the DMStag object
+        # comm
         cdef MPI_Comm ccomm = def_Comm(comm, PETSC_COMM_DEFAULT)
-        cdef PetscDM newda = NULL
-        CHKERR( DMStagCreateND(ccomm, ndim, dof0, dof1, dof2, dof3,
-                             M, N, P, m, n, p, lx, ly, lz,
-                             btx, bty, btz, stype, swidth,
-                             &newda) )
-        if setup and ndim > 0: CHKERR( DMSetUp(newda) )
-        PetscCLEAR(self.obj); self.dm = newda
-        return self
 
-    
-    
-    
-    
+        # proc sizes
+        cdef object psizes = proc_sizes
+        cdef PetscInt nprocs=PETSC_DECIDE, m=PETSC_DECIDE, n=PETSC_DECIDE, p=PETSC_DECIDE
+        if proc_sizes is not None:
+            nprocs = asStagDims(psizes, &m, &n, &p)
+            assert(nprocs==ndim)
+
+        # ownership ranges
+        cdef const_PetscInt *lx = NULL, *ly = NULL, *lz = NULL
+        if ownership_ranges is not None:
+            nranges = asStagOwnershipRanges(ownership_ranges, ndim, &m, &n, &p, &lx, &ly, &lz)       
+            
+        # create
+        cdef PetscDM newda = NULL
+        if dim == 1:
+            CHKERR( DMStagCreate1d(ccomm, btx, M, dof0, dof1, stype, swidth, lx, &newda) )
+        if dim == 2:
+            CHKERR( DMStagCreate2d(ccomm, btx, bty, M, N, m, n, dof0, dof1, dof2, stype, swidth, lx, ly, &newda) )
+        if dim == 3:
+            CHKERR( DMStagCreate3d(ccomm, btx, bty, btz, M, N, P, m, n, p, dof0, dof1, dof2, dof3, stype, swidth, lx, ly, lz, &newda) )
+        return self
+            
     # Setters
 
 
-#    def setStencilWidth(self,swidth):
-#        sw = asInt(dof0)
+    def setStencilWidth(self,swidth):
+        raise NotImplementedError('DMStagSetStencilWidth not yet implemented in petsc')
+#        cdef PetscInt sw = asInt(swidth)
 #        CHKERR( DMStagSetStencilWidth(self.dm, sw) )
-       
-#    def setGhostType(self, ghosttype):
+
+    def setGhostType(self, ghosttype):
+        raise NotImplementedError('DMStagSetGhostType not yet implemented in petsc4py')
 #        cdef PetscDMStagStencilType stype = asStagStencil(ghosttype)
 #        CHKERR( DMStagSetGhostType(self.dm, stype) )
 
@@ -139,47 +120,30 @@ cdef class DMStag(DM):
         
     def setDof(self, dofs):
         cdef tuple gdofs = tuple(dofs)
-        cdef PetscInt gdim = PETSC_DECIDE
-        cdef PetscInt dof0 = 1
-        cdef PetscInt dof1 = 0
-        cdef PetscInt dof2 = 0
-        cdef PetscInt dof3 = 0
+        cdef PetscInt gdim=PETSC_DECIDE, dof0=1, dof1=0, dof2=0, dof3=0
         gdim = asDofs(gdofs, &dof0, &dof1, &dof2, &dof3)
         CHKERR( DMStagSetDOF(self.dm, dof0, dof1, dof2, dof3) )
         
     def setGlobalSizes(self, sizes):
         cdef tuple gsizes = tuple(sizes)
-        cdef PetscInt gdim = PETSC_DECIDE
-        cdef PetscInt M = 1
-        cdef PetscInt N = 1
-        cdef PetscInt P = 1
+        cdef PetscInt gdim=PETSC_DECIDE, M=1, N=1, P=1
         gdim = asStagDims(gsizes, &M, &N, &P)
-        cdef PetscInt dim = PETSC_DECIDE
-        CHKERR( DMGetDimension(self.dm, &dim) )
-        if dim == PETSC_DECIDE:
-            CHKERR( DMSetDimension(self.dm, gdim) )
         CHKERR( DMStagSetGlobalSizes(self.dm, M, N, P) )
         
     def setProcSizes(self, sizes):
         cdef tuple psizes = tuple(sizes)
-        cdef PetscInt pdim = PETSC_DECIDE
-        cdef PetscInt m = PETSC_DECIDE
-        cdef PetscInt n = PETSC_DECIDE
-        cdef PetscInt p = PETSC_DECIDE
+        cdef PetscInt pdim=PETSC_DECIDE, m=PETSC_DECIDE, n=PETSC_DECIDE, p=PETSC_DECIDE
         pdim = asStagDims(psizes, &m, &n, &p)
-        cdef PetscInt dim = PETSC_DECIDE
-        CHKERR( DMGetDimension(self.dm, &dim) )
-        if dim == PETSC_DECIDE:
-            CHKERR( DMSetDimension(self.dm, pdim) )
         CHKERR( DMStagSetNumRanks(self.dm, m, n, p) )
 
-#    def setOwnershipRanges(self, ranges):
+    def setOwnershipRanges(self, ranges):
+        raise NotImplementedError('DMStagSetOwnershipRanges not yet implemented in petsc4py')
 #        cdef PetscInt dim=0, m=PETSC_DECIDE, n=PETSC_DECIDE, p=PETSC_DECIDE
 #        cdef const_PetscInt *lx = NULL, *ly = NULL, *lz = NULL
 #        CHKERR( DMGetDimension(self.dm, &dim) )
 #        CHKERR( DMStagGetNumRanks(self.dm, &m, &n, &p) )
 #        ownership_ranges = asStagOwnershipRanges(ranges, dim, &m, &n, &p, &lx, &ly, &lz)
-#        CHKERR( DMStagSetOwnershipRanges(self.dm, &lx, &ly, &lz) )
+#        CHKERR( DMStagSetOwnershipRanges(self.dm, lx, ly, lz) )
 
 
 
@@ -238,11 +202,14 @@ cdef class DMStag(DM):
         CHKERR( DMStagGetNumRanks(self.dm, &m, &n, &p) )
         return toStagDims(dim, m, n, p)
         
-#    def getGhostType(self):
+    def getGhostType(self):
+        raise NotImplementedError('DMStagGetGhostType not yet implemented in petsc')
 #        cdef PetscDMStagStencilType stype = DMSTAG_STENCIL_BOX
 #        CHKERR( DMStagGetGhostType(self.dm, &stype) )
+#        return toStagStencil(stype)
 
-#    def getOwnershipRanges(self):
+    def getOwnershipRanges(self):
+        raise NotImplementedError('DMStagGetOwnershipRanges not yet implemented in petsc')
 #        cdef PetscInt dim=0, m=0, n=0, p=0
 #        cdef const_PetscInt *lx = NULL, *ly = NULL, *lz = NULL
 #        CHKERR( DMGetDimension(self.dm, &dim) )
@@ -300,34 +267,38 @@ cdef class DMStag(DM):
         cdef PetscReal _zmin = asReal(zmin), _zmax = asReal(zmax)
         CHKERR( DMStagSetUniformCoordinates(self.dm, _xmin, _xmax, _ymin, _ymax, _zmin, _zmax) )        
 
-        
-
     def setCoordinateDMType(self, dmtype):
-        pass
-        
-    #int DMStagSetCoordinateDMType(PetscDM dm,PetscDMType dmtype)   
+        cdef const_char *cval = NULL
+        dm_type = str2bytes(dm_type, &cval)
+        CHKERR( DMStagSetCoordinateDMType(self.dm, cval) )
 
-
-    
-    
-    
     
     
     # Location slot related functions
-    
-    def getLocationSlot(self):
-        pass
-    
 
-    def getLocationDof(self):
-        pass
+    def getLocationSlot(self, loc, c):
+        cdef PetscInt slot=0
+        cdef PetscInt comp=asInt(c)
+        cdef PetscDMStagStencilLocation sloc = asStagStencilLocation(loc)
+        CHKERR( DMStagGetLocationSlot(self.dm, sloc, comp, &slot) ) 
+        return toInt(slot)
+
+    def get1DCoordinateLocationSlot(self, loc):
+        cdef PetscInt slot=0
+        cdef PetscDMStagStencilLocation sloc = asStagStencilLocation(loc)
+        CHKERR( DMStagGet1dCoordinateLocationSlot(self.dm, sloc, &slot) ) 
+        return toInt(slot)
         
-    def get1DCoordinateLocationSlot(self):
-        pass
+    def getLocationDof(self, loc):
+        cdef PetscInt dof=0
+        cdef PetscDMStagStencilLocation sloc = asStagStencilLocation(loc)
+        CHKERR( DMStagGetLocationDOF(self.dm, sloc, &dof) ) 
+        return toInt(slot)
         
-    #int DMStagGetLocationSlot(PetscDM dm,PetscDMStagStencilLocation loc,PetscInt c,PetscInt *slot)
-    #int DMStagGetLocationDOF(PetscDM dm,PetscDMStagStencilLocation loc,PetscInt *dof)
-    #int DMStagGet1dCoordinateLocationSlot(PetscDM dm,PetscDMStagStencilLocation loc,PetscInt *slot)
+
+        
+
+
         
         
         
@@ -347,27 +318,36 @@ cdef class DMStag(DM):
         CHKERR( DMStagMigrateVec(self.dm, vec.vec, dmTo.dm, vecTo.vec ) )
         
     def createCompatibleDMStag(self, dofs, newdm=None):
-        pass
-    def VecSplitToDMDA(self, vec, loc, c, pda=None, pdavec=None):
-        pass
-
+        raise NotImplementedError('DMStagCreateCompatibleDMStag not yet implemented in petsc4py')
+        # int DMStagCreateCompatibleDMStag(PetscDM dm,PetscInt dof0,PetscInt dof1,PetscInt dof2,PetscInt dof3,PetscDM *newdm)
         
-    #int DMStagCreateCompatibleDMStag(PetscDM dm,PetscInt dof0,PetscInt dof1,PetscInt dof2,PetscInt dof3,PetscDM *newdm)
-    #int DMStagVecSplitToDMDA(PetscDM dm,PetscVec vec,PetscDMStagStencilLocation loc,PetscInt c,PetscDM *pda,PetscVec *pdavec)'
+    def VecSplitToDMDA(self, vec, loc, c, pda=None, pdavec=None):
+        raise NotImplementedError('DMStagVecSplitToDMDA not yet implemented in petsc4py')
+        # int DMStagVecSplitToDMDA(PetscDM dm,PetscVec vec,PetscDMStagStencilLocation loc,PetscInt c,PetscDM *pda,PetscVec *pdavec)'
+
+    def getVecArray(self, Vec vec):
+        raise NotImplementedError('getVecArray for DMSStag not yet implemented in petsc4py')
+        # Should return an error if Vec is not a local DMStag vector
+
+# THESE ARE NOT ACTUALLY WRAPPED
+# INSTEAD WE USE A _Vec_Buffer and _DMStag_Vec_Buffer...
+#PetscErrorCode DMStagVecGetArrayDOF(DM dm,Vec vec,void *array)
+#PetscErrorCode DMStagVecGetArrayDOFRead(DM dm,Vec vec,void *array)
+#PetscErrorCode DMStagVecRestoreArrayDOF(DM dm,Vec vec,void *array)
+#PetscErrorCode DMStagVecRestoreArrayDOFRead(DM dm,Vec vec,void *array)
+#PetscErrorCode DMStagGet1dCoordinateArraysDOFRead(DM dm,void* arrX,void* arrY,void* arrZ)
+#PetscErrorCode DMStagRestore1dCoordinateArraysDOFRead(DM dm,void *arrX,void *arrY,void *arrZ)
 
 
 
 
-
-
-
-
-
-
-# NEED TO ADD VEC GET ARRAY
-# NEED TO ADD VEC/MAT SET VALUES STENCIL
+# This needs to go into Mat/Vec actually
+#PetscErrorCode DMStagMatSetValuesStencil(DM dm,Mat mat,PetscInt nRow,const DMStagStencil *posRow,PetscInt nCol,const DMStagStencil *posCol,const PetscScalar *val,InsertMode insertMode)
+#PetscErrorCode DMStagVecGetValuesStencil(DM dm,Vec vec,PetscInt n,const DMStagStencil *pos,PetscScalar *val)
+#PetscErrorCode DMStagVecSetValuesStencil(DM dm,Vec vec,PetscInt n,const DMStagStencil *pos,const PetscScalar *val,InsertMode insertMode)
 # NEED TO ADD DMStagStencil
-# NEED TO ADD SOME COORDINATES STUFF
+
+
 
     property dim:
         def __get__(self):
@@ -397,9 +377,9 @@ cdef class DMStag(DM):
         def __get__(self):
             return self.getBoundaryTypes()
 
-#    property stencil_type:
-#        def __get__(self):
-#            return self.getGhostType()
+    property stencil_type:
+        def __get__(self):
+            return self.getGhostType()
 
     property stencil_width:
         def __get__(self):

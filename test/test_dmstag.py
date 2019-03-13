@@ -6,19 +6,20 @@ import unittest
 class BaseTestDMStag(object):
 
     COMM = PETSc.COMM_WORLD
-    SIZES = None
-    BOUNDARY = None
-    DOF = 1 # FIX THIS
-    STENCIL = PETSc.DMStag.StencilType.STAR
+    BOUNDARY = PETSc.DM.BoundaryType.NONE
+    DOF = (1,0,0,0)
+    STENCIL = PETSc.DMStag.StencilType.BOX
     SWIDTH = 1
 
+# ADD TESTS IN HERE FOR PROCSIZES AND OWNERSHIP RANGES
+
     def setUp(self):
-        self.da = PETSc.DMStag().create(dim=len(self.SIZES),
-                                      dof=self.DOF, #FIX THIS
-                                      sizes=self.SIZES,
-                                      boundary_type=self.BOUNDARY,
-                                      stencil_type=self.STENCIL,
-                                      stencil_width=self.SWIDTH,
+        self.da = PETSc.DMStag().create(len(self.SIZES),
+                                      self.DOF,
+                                      self.SIZES,
+                                      self.BOUNDARY,
+                                      self.STENCIL,
+                                      self.SWIDTH,
                                       comm=self.COMM)
 
     def tearDown(self):
@@ -26,42 +27,40 @@ class BaseTestDMStag(object):
 
     def testGetInfo(self):
         dim = self.da.getDim()
-        dof = self.da.getDof() #FIX THIS
-        sizes = self.da.getSizes()
+        dof = self.da.getDof()
+        gsizes = self.da.getGlobalSizes()
         psizes = self.da.getProcSizes()
         boundary = self.da.getBoundaryTypes()
-        stencil_type = self.da.getStencilType() #FIX THIS
+        stencil_type = self.da.getGhostType()
         stencil_width = self.da.getStencilWidth()
+        entries_per_element = self.da.getEntriesPerElement()
         self.assertEqual(dim, len(self.SIZES))
-        self.assertEqual(dof, self.DOF)   #FIX THIS
-        self.assertEqual(sizes, tuple(self.SIZES))
-        self.assertEqual(boundary, self.BOUNDARY or (0,)*dim)
+        self.assertEqual(dof, self.DOF)
+        if dim == 1: self.assertEqual(entries_per_element, dof[0] + dof[1])
+        if dim == 2: self.assertEqual(entries_per_element, dof[0] + 2*dof[1] + dof[2])
+        if dim == 2: self.assertEqual(entries_per_element, dof[0] + 3*dof[1] + 3*dof[2] + dof[3])
+        self.assertEqual(gsizes, tuple(self.SIZES))
+        self.assertEqual(boundary, self.BOUNDARY)
         self.assertEqual(stencil_type, self.STENCIL)
         self.assertEqual(stencil_width, self.SWIDTH)
-
-    def testRangesCorners(self):
+    
+    def testCorners(self):
         dim = self.da.getDim()
-        ranges = self.da.getRanges()
-        starts, lsizes  = self.da.getCorners()
-        self.assertEqual(dim, len(ranges))
+        lsizes = self.da.getLocalSizes()
+        starts, sizes, nextra  = self.da.getCorners()
+        isLastRank = self.da.getIsLastRank()
+        isFirstRank = self.da.getIsFirstRank()
         self.assertEqual(dim, len(starts))
+        self.assertEqual(dim, len(sizes))
         self.assertEqual(dim, len(lsizes))
+        self.assertEqual(dim, len(nextra))
+        self.assertEqual(dim, len(isLastRank))
+        self.assertEqual(dim, len(isFirstRank))
         for i in range(dim):
-            s, e = ranges[i]
-            self.assertEqual(s, starts[i])
-            self.assertEqual(e-s, lsizes[i])
-
-    def testGhostRangesCorners(self):
-        dim = self.da.getDim()
-        ranges = self.da.getGhostRanges()
-        starts, lsizes  = self.da.getGhostCorners()
-        self.assertEqual(dim, len(ranges))
-        self.assertEqual(dim, len(starts))
-        self.assertEqual(dim, len(lsizes))
-        for i in range(dim):
-            s, e = ranges[i]
-            self.assertEqual(s, starts[i])
-            self.assertEqual(e-s, lsizes[i])
+            self.assertEqual(sizes[i], lsizes[i])
+            if isLastRank[i]: self.assertEqual(nextra[i],1)
+            if (nextra[i]==1): self.assertEqual(isLastRank[i],True)
+            
 
     def testOwnershipRanges(self):
         dim = self.da.getDim()
@@ -71,45 +70,43 @@ class BaseTestDMStag(object):
         for i,m in enumerate(procsizes):
             self.assertEqual(m, len(ownership_ranges[i]))
 
-    def testFieldName(self):
-        for i in range(self.da.getDof()):
-            self.da.setFieldName(i, "field%d" % i)
-        for i in range(self.da.getDof()):
-            name = self.da.getFieldName(i)
-            self.assertEqual(name, "field%d" % i)
-
     def testCoordinates(self):
-        self.da.setUniformCoordinates(0,1,0,1,0,1)
-        #
+        
+# ADD A TEST HERE FOR SETTING CoordinateDMType
+# AND For setUniformCoordinates actually respecting this!
+
+        self.da.setUniformCoordinatesExplicit(0,1,0,1,0,1)
+# ACTUALL CHECK THIS TYPE
         c = self.da.getCoordinates()
         self.da.setCoordinates(c)
         c.destroy()
+# ACTUALL CHECK THIS TYPE
         cda = self.da.getCoordinateDM()
         cda.destroy()
-        #
-        c = self.da.getCoordinates()
-        self.da.setCoordinates(c)
-        c.destroy()
         gc = self.da.getCoordinatesLocal()
         gc.destroy()
 
+        self.da.setUniformCoordinatesProduct(0,1,0,1,0,1)
+# ACTUALL CHECK THIS TYPE
+        c = self.da.getCoordinates()
+        self.da.setCoordinates(c)
+        c.destroy()
+# ACTUALL CHECK THIS TYPE
+        cda = self.da.getCoordinateDM()
+        cda.destroy()
+        gc = self.da.getCoordinatesLocal()
+        gc.destroy()
+
+
     def testCreateVecMat(self):
-        vn = self.da.createNaturalVec()
         vg = self.da.createGlobalVec()
         vl = self.da.createLocalVec()
         mat = self.da.createMat()
         self.assertTrue(mat.getType() in ('aij', 'seqaij', 'mpiaij'))
-        vn.set(1.0)
-        self.da.naturalToGlobal(vn,vg)
-        self.assertEqual(vg.max()[1], 1.0)
-        self.assertEqual(vg.min()[1], 1.0)
+        vg.set(1.0)
         self.da.globalToLocal(vg,vl)
         self.assertEqual(vl.max()[1], 1.0)
         self.assertTrue (vl.min()[1] in (1.0, 0.0))
-        vn.set(0.0)
-        self.da.globalToNatural(vg,vn)
-        self.assertEqual(vn.max()[1], 1.0)
-        self.assertEqual(vn.min()[1], 1.0)
         vl2 = self.da.createLocalVec()
         self.da.localToLocal(vl,vl2)
         self.assertEqual(vl2.max()[1], 1.0)
@@ -152,270 +149,163 @@ class BaseTestDMStag(object):
         lgmap = self.da.getLGMap()
         l2g, g2l = self.da.getScatter()
 
-    def testRefineCoarsen(self):
-        da = self.da
-        rda = da.refine()
-        self.assertEqual(da.getDim(), rda.getDim())
-        self.assertEqual(da.getDof(), rda.getDof())
-        if da.dim != 1:
-            self.assertEqual(da.getStencilType(),  rda.getStencilType())
-        self.assertEqual(da.getStencilWidth(), rda.getStencilWidth())
-        cda = rda.coarsen()
-        self.assertEqual(rda.getDim(), cda.getDim())
-        self.assertEqual(rda.getDof(), cda.getDof())
-        for n1, n2 in zip(self.da.getSizes(), cda.getSizes()):
-            self.assertTrue(abs(n1-n2)<=1)
+# ADD TESTS for all the SETTERS
+#setGhostType
+#setStencilWidth
+#setBoundaryTypes
+#setDof
+#setGlobalSizes
+#setProcSizes
+#setOwnershipRanges
+# Do this via 2 modes of DMStag creation
+# 1) DMStag().create()
+# 2) DM().create(), DM().setType(), DM().setDim(), etc.
+# Then checking equality!
 
-    def testCoarsenRefine(self):
-        da = self.da
-        cda = self.da.coarsen()
-        self.assertEqual(da.getDim(), cda.getDim())
-        self.assertEqual(da.getDof(), cda.getDof())
-        if da.dim != 1:
-            self.assertEqual(da.getStencilType(),  cda.getStencilType())
-        self.assertEqual(da.getStencilWidth(), cda.getStencilWidth())
-        rda = cda.refine()
-        for n1, n2 in zip(self.da.getSizes(), rda.getSizes()):
-            self.assertTrue(abs(n1-n2)<=1)
+# ADD TESTS FOR migrateVec, createCompatibleDMStag, VecSplitToDMDA
 
-    def testRefineHierarchy(self):
-        levels = self.da.refineHierarchy(2)
-        self.assertTrue(isinstance(levels, list))
-        self.assertEqual(len(levels), 2)
-        for item in levels:
-            self.assertTrue(isinstance(item, PETSc.DM))
+# ADD TEST FOR vecGetArray
 
-    def testCoarsenHierarchy(self):
-        levels = self.da.coarsenHierarchy(2)
-        self.assertTrue(isinstance(levels, list))
-        self.assertEqual(len(levels), 2)
-        for item in levels:
-            self.assertTrue(isinstance(item, PETSc.DM))
+# ADD TESTS FOR LOCATION SLOT AND LOCATION DOF
+# ADD TEST FOR MAT and VEC SETVALUESSTENCIL
 
-    def testCreateInterpolation(self):
-        da = self.da
-        if da.dim == 1: return
-        rda = da.refine()
-        mat, vec = da.createInterpolation(rda)
-
-    def testCreateInjection(self):
-        da = self.da
-        if da.dim == 1: return
-        rda = da.refine()
-        scatter = da.createInjection(rda)
-
-    def testCreateAggregates(self):
-        da = self.da
-        if da.dim == 1: return
-        rda = da.refine()
-        mat = da.createAggregates(rda)
-
-
-MIRROR   = PETSc.DMDA.BoundaryType.MIRROR
-GHOSTED  = PETSc.DMDA.BoundaryType.GHOSTED
-PERIODIC = PETSc.DMDA.BoundaryType.PERIODIC
-TWIST    = PETSc.DMDA.BoundaryType.TWIST
+GHOSTED  = PETSc.DM.BoundaryType.GHOSTED
+PERIODIC = PETSc.DM.BoundaryType.PERIODIC
+NONE = PETSc.DM.BoundaryType.NONE
 
 SCALE = 4
 
-class BaseTestDA_1D(BaseTestDA):
-    SIZES = [100*SCALE]
+class BaseTestDMStag_1D(BaseTestDMStag):
+    SIZES = [100*SCALE,]
+    BOUNDARY = [NONE,]
 
-class BaseTestDA_2D(BaseTestDA):
+class BaseTestDMStag_2D(BaseTestDMStag):
     SIZES = [9*SCALE,11*SCALE]
+    BOUNDARY = [NONE,NONE]
 
-class BaseTestDA_3D(BaseTestDA):
+class BaseTestDMStag_3D(BaseTestDMStag):
     SIZES = [6*SCALE,7*SCALE,8*SCALE]
+    BOUNDARY = [NONE,NONE,NONE]
 
 # --------------------------------------------------------------------
 
-class TestDA_1D(BaseTestDA_1D, unittest.TestCase):
+# ADD MORE SPOT CHECKS HERE!
+class TestDMStag_1D(BaseTestDMStag_1D, unittest.TestCase):
     pass
-class TestDA_1D_W0(TestDA_1D):
+class TestDMStag_1D_W0(TestDMStag_1D):
     SWIDTH = 0
-class TestDA_1D_W2(TestDA_1D):
+class TestDMStag_1D_W0_N10(TestDMStag_1D):
+    SWIDTH = 0
+    DOF = (1,0)
+class TestDMStag_1D_W0_N11(TestDMStag_1D):
+    SWIDTH = 0
+    DOF = (1,1)
+class TestDMStag_1D_W0_N12(TestDMStag_1D):
+    SWIDTH = 0
+    DOF = (1,2)
+class TestDMStag_1D_W2(TestDMStag_1D):
     SWIDTH = 2
+class TestDMStag_1D_W2_N10(TestDMStag_1D):
+    SWIDTH = 2
+    DOF = (1,0)
+class TestDMStag_1D_W2_N11(TestDMStag_1D):
+    SWIDTH = 2
+    DOF = (1,1)
+class TestDMStag_1D_W2_N12(TestDMStag_1D):
+    SWIDTH = 2
+    DOF = (1,2)
 
-class TestDA_2D(BaseTestDA_2D, unittest.TestCase):
+# ADD MORE SPOT CHECKS HERE!
+class TestDMStag_2D(BaseTestDMStag_2D, unittest.TestCase):
     pass
-class TestDA_2D_W0(TestDA_2D):
+class TestDMStag_2D_W0(TestDMStag_2D):
     SWIDTH = 0
-class TestDA_2D_W0_N2(TestDA_2D):
-    DOF = 2
+class TestDMStag_2D_W0_N112(TestDMStag_2D):
+    DOF = (1,1,2)
     SWIDTH = 0
-class TestDA_2D_W2(TestDA_2D):
+class TestDMStag_2D_W2(TestDMStag_2D):
     SWIDTH = 2
-class TestDA_2D_W2_N2(TestDA_2D):
-    DOF = 2
+class TestDMStag_2D_W2_N112(TestDMStag_2D):
+    DOF = (1,1,2)
     SWIDTH = 2
-class TestDA_2D_PXY(TestDA_2D):
+class TestDMStag_2D_PXY(TestDMStag_2D):
     SIZES = [13*SCALE,17*SCALE]
-    DOF = 2
+    DOF = (1,1,2)
     SWIDTH = 5
     BOUNDARY = (PERIODIC,)*2
-class TestDA_2D_GXY(TestDA_2D):
+class TestDMStag_2D_GXY(TestDMStag_2D):
     SIZES = [13*SCALE,17*SCALE]
-    DOF = 2
+    DOF = (1,1,2)
     SWIDTH = 5
     BOUNDARY = (GHOSTED,)*2
-class TestDA_2D_TXY(TestDA_2D):
-    SIZES = [13*SCALE,17*SCALE]
-    DOF = 2
-    SWIDTH = 5
-    BOUNDARY = (TWIST,)*2
 
-class TestDA_3D(BaseTestDA_3D, unittest.TestCase):
+# ADD MORE SPOT CHECKS HERE!
+class TestDMStag_3D(BaseTestDMStag_3D, unittest.TestCase):
     pass
-class TestDA_3D_W0(TestDA_3D):
+class TestDMStag_3D_W0(TestDMStag_3D):
     SWIDTH = 0
-class TestDA_3D_W0_N2(TestDA_3D):
-    DOF = 2
+class TestDMStag_3D_W0_N1123(TestDMStag_3D):
+    DOF = (1,1,2,3)
     SWIDTH = 0
-class TestDA_3D_W2(TestDA_3D):
+class TestDMStag_3D_W2(TestDMStag_3D):
     SWIDTH = 2
-class TestDA_3D_W2_N2(TestDA_3D):
-    DOF = 2
+class TestDMStag_3D_W2_N1123(TestDMStag_3D):
+    DOF = (1,1,2,3)
     SWIDTH = 2
-class TestDA_3D_PXYZ(TestDA_3D):
+class TestDMStag_3D_PXYZ(TestDMStag_3D):
     SIZES = [11*SCALE,13*SCALE,17*SCALE]
-    DOF = 2
+    DOF = (1,1,2,3)
     SWIDTH = 3
     BOUNDARY = (PERIODIC,)*3
-class TestDA_3D_GXYZ(TestDA_3D):
+class TestDMStag_3D_GXYZ(TestDMStag_3D):
     SIZES = [11*SCALE,13*SCALE,17*SCALE]
-    DOF = 2
+    DOF = (1,1,2,3)
     SWIDTH = 3
     BOUNDARY = (GHOSTED,)*3
-class TestDA_3D_TXYZ(TestDA_3D):
-    SIZES = [11*SCALE,13*SCALE,17*SCALE]
-    DOF = 2
-    SWIDTH = 3
-    BOUNDARY = (TWIST,)*3
 
 # --------------------------------------------------------------------
 
-DIM = (1,2,3,)
-DOF = (None,1,2,3,4,5,)
-BOUNDARY_TYPE = (
-    None,
-    "none",     (0,)*3,        0,
-    "ghosted",  (GHOSTED,)*3,  GHOSTED,
-    "periodic", (PERIODIC,)*3, PERIODIC,
-    "twist",    (TWIST,)*3,    TWIST,
-    )
-STENCIL_TYPE  = (None,"star","box")
-STENCIL_WIDTH = (None,0,1,2,3)
+DIM = (1,2,3)
+DOF0 = (0,1,2,3)
+DOF1 = (0,1,2,3)
+DOF2 = (0,1,2,3)
+DOF3 = (0,1,2,3)
+BOUNDARY_TYPE = (PETSc.DM.BoundaryType.NONE,PETSc.DM.BoundaryType.GHOSTED,PETSc.DM.BoundaryType.PERIODIC)
+STENCIL_TYPE  = (PETSc.DMStag.StencilType.NONE,PETSc.DMStag.StencilType.STAR,PETSc.DMStag.StencilType.BOX)
+STENCIL_WIDTH = (0,1,2,3)
 
-
-DIM           = (1,2,3)
-DOF           = (None,2,5)
-BOUNDARY_TYPE = (None,"none","periodic","ghosted","twist")
-STENCIL_TYPE  = (None,"box")
-STENCIL_WIDTH = (None,1,2)
-
-class TestDACreate(unittest.TestCase):
+class TestDMStagCreate(unittest.TestCase):
     pass
 counter = 0
 for dim in DIM:
-    for dof in DOF:
-        for boundary in BOUNDARY_TYPE:
-            if isinstance(boundary, tuple):
-                boundary = boundary[:dim]
-            for stencil in STENCIL_TYPE:
-                for width in STENCIL_WIDTH:
-                    kargs = dict(sizes=[8*SCALE]*dim,
-                                 dim=dim, dof=dof,
-                                 boundary_type=boundary,
-                                 stencil_type=stencil,
-                                 stencil_width=width)
-                    def testCreate(self, kargs=kargs):
-                        kargs = dict(kargs)
-                        da = PETSc.DMDA().create(**kargs)
-                        da.destroy()
-                    setattr(TestDACreate,
-                            "testCreate%04d"%counter,
-                            testCreate)
-                    del testCreate, kargs
-                    counter += 1
-del counter, dim, dof, boundary, stencil, width
-
-class TestDADuplicate(unittest.TestCase):
-    pass
-counter = 0
-for dim in DIM:
-    for dof in DOF:
-        for boundary in BOUNDARY_TYPE:
-            if isinstance(boundary, tuple):
-                boundary = boundary[:dim]
-            for stencil in STENCIL_TYPE:
-                for width in STENCIL_WIDTH:
-                    kargs = dict(dim=dim, dof=dof,
-                                 boundary_type=boundary,
-                                 stencil_type=stencil,
-                                 stencil_width=width)
-                    def testDuplicate(self, kargs=kargs):
-                        kargs = dict(kargs)
-                        dim = kargs.pop('dim')
-                        dof = kargs['dof']
-                        boundary = kargs['boundary_type']
-                        stencil = kargs['stencil_type']
-                        width = kargs['stencil_width']
-                        da = PETSc.DMDA().create([8*SCALE]*dim)
-                        newda = da.duplicate(**kargs)
-                        self.assertEqual(newda.dim, da.dim)
-                        self.assertEqual(newda.sizes, da.sizes)
-                        self.assertEqual(newda.proc_sizes,
-                                         da.proc_sizes)
-                        self.assertEqual(newda.ranges, da.ranges)
-                        self.assertEqual(newda.corners, da.corners)
-                        if (newda.boundary_type == da.boundary_type
-                            and
-                            newda.stencil_width == da.stencil_width):
-                            self.assertEqual(newda.ghost_ranges,
-                                             da.ghost_ranges)
-                            self.assertEqual(newda.ghost_corners,
-                                             da.ghost_corners)
-                        if dof is None:
-                            dof = da.dof
-                        if boundary is None:
-                            boundary = da.boundary_type
-                        elif boundary == "none":
-                            boundary = (0,) * dim
-                        elif boundary == "mirror":
-                            boundary = (MIRROR,) * dim
-                        elif boundary == "ghosted":
-                            boundary = (GHOSTED,) * dim
-                        elif boundary == "periodic":
-                            boundary = (PERIODIC,) * dim
-                        elif boundary == "twist":
-                            boundary = (TWIST,) * dim
-                        elif isinstance(boundary, int):
-                            boundary = (boundary,) * dim
-                        if stencil is None:
-                            stencil = da.stencil[0]
-                        if width is None:
-                            width = da.stencil_width
-                        self.assertEqual(newda.dof, dof)
-                        self.assertEqual(newda.boundary_type,
-                                         boundary)
-                        if dim == 1:
-                            self.assertEqual(newda.stencil,
-                                             (stencil, width))
-                        newda.destroy()
-                        da.destroy()
-                    setattr(TestDADuplicate,
-                            "testDuplicate%04d"%counter,
-                            testDuplicate)
-                    del testDuplicate, kargs
-                    counter += 1
-del counter, dim, dof, boundary, stencil, width
+    for dof0 in DOF0:
+        for dof1 in DOF1:
+            for dof2 in DOF2:
+                if dim == 1 and dof2 > 0: continue
+                for dof3 in DOF3:
+                    if dim == 2 and dof3 > 0: continue
+                    dof = [dof0,dof1,dof2,dof3][:dim+1]
+                    for boundary in BOUNDARY_TYPE:
+                        for stencil in STENCIL_TYPE:
+                            for width in STENCIL_WIDTH:
+                                kargs = dict(dim=dim, dof=dof,boundary_type=boundary,stencil_type=stencil,stencil_width=width)
+                                def testCreate(self,kargs=kargs):
+                                    kargs = dict(kargs)
+                                    da = PETSc.DMStag().create(kargs['dim'],kargs['dof'],[8*SCALE,]*kargs['dim'],[kargs['boundary_type'],]*kargs['dim'],kargs['stencil_type'],kargs['stencil_width'])
+                                    da.destroy()
+                                setattr(TestDMStagCreate,
+                                        "testCreate%04d"%counter,
+                                        testCreate)
+                                del testCreate
+                                counter += 1
+del counter, dim, dof, dof0, dof1, dof2, dof3, boundary, stencil, width
 
 # --------------------------------------------------------------------
 
-if PETSc.COMM_WORLD.getSize() > 1:
-    del TestDA_1D_W0
-    del TestDA_2D_W0, TestDA_2D_W0_N2
-    del TestDA_3D_W0, TestDA_3D_W0_N2
+# if PETSc.COMM_WORLD.getSize() > 1:
+    # del TestDMStag_1D_W0
+    # del TestDMStag_2D_W0, TestDMStag_2D_W0_N2
+    # del TestDMStag_3D_W0, TestDMStag_3D_W0_N2
 
 # --------------------------------------------------------------------
 
