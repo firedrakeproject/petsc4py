@@ -53,16 +53,16 @@ cdef extern from * nogil:
     int DMStagGetGlobalSizes(PetscDM,PetscInt*,PetscInt*,PetscInt*)
     int DMStagGetBoundaryTypes(PetscDM,PetscDMBoundaryType*,PetscDMBoundaryType*,PetscDMBoundaryType*)
     int DMStagGetStencilWidth(PetscDM,PetscInt*)
-    # int DMStagGetGhostType(PetscDM,PetscDMStagStencilType*) # NOT YET EXISTING
-    # int DMStagGetOwnershipRanges(PetscDM,const_PetscInt*[],const_PetscInt*[],const_PetscInt*[]) # NOT YET EXISTING
+    #int DMStagGetGhostType(PetscDM,PetscDMStagStencilType*) # NOT YET EXISTING
+    #int DMStagGetOwnershipRanges(PetscDM,const_PetscInt*[],const_PetscInt*[],const_PetscInt*[]) # NOT YET EXISTING
 
     int DMStagSetDOF(PetscDM,PetscInt,PetscInt,PetscInt,PetscInt)
     int DMStagSetNumRanks(PetscDM,PetscInt,PetscInt,PetscInt)    
     int DMStagSetGlobalSizes(PetscDM,PetscInt,PetscInt,PetscInt)
     int DMStagSetBoundaryTypes(PetscDM,PetscDMBoundaryType,PetscDMBoundaryType,PetscDMBoundaryType)
-    # int DMStagSetStencilWidth(PetscDM,PetscInt) # NOT YET EXISTING
-    # int DMStagSetGhostType(PetscDM,PetscDMStagStencilType)
-    # int DMStagSetOwnershipRanges(PetscDM,const_PetscInt[],const_PetscInt[],const_PetscInt[])
+    #int DMStagSetStencilWidth(PetscDM,PetscInt) # NOT YET EXISTING
+    #int DMStagSetGhostType(PetscDM,PetscDMStagStencilType) # NOT PROPERLY SET IN HEADER
+    int DMStagSetOwnershipRanges(PetscDM,const_PetscInt[],const_PetscInt[],const_PetscInt[])
 
     int DMStagGetLocationSlot(PetscDM,PetscDMStagStencilLocation,PetscInt,PetscInt*)
     int DMStagGetLocationDOF(PetscDM,PetscDMStagStencilLocation,PetscInt*)
@@ -79,20 +79,6 @@ cdef extern from * nogil:
     int DMStagCreateCompatibleDMStag(PetscDM,PetscInt,PetscInt,PetscInt,PetscInt,PetscDM*)
     int DMStagVecSplitToDMDA(PetscDM,PetscVec,PetscDMStagStencilLocation,PetscInt,PetscDM*,PetscVec*)
     int DMStagMigrateVec(PetscDM,PetscVec,PetscDM,PetscVec)
-
-#int DMStagMatSetValuesStencil(PetscDM,PetscMat,PetscInt,PetscDMStagStencil[],PetscInt,PetscDMStagStencil[],PetscScalar[],PetscInsertMode)
-#int DMStagVecGetValuesStencil(PetscDM,PetscVec,PetscInt,PetscDMStagStencil[],PetscScalar[])
-#int DMStagVecSetValuesStencil(PetscDM,PetscVec,PetscInt,PetscDMStagStencil[],PetscScalar[],PetscInsertMode)
-
-# NEED TO ADD DMStagStencil
-#    ctypedef struct PetscDMStagStencil "DMStagStencil":
-#        PetscInt k,j,i,c
-#        PetscDMStagStencilLocation loc
-
-
-# ALSO DM PRODUCT STUFF?
-
-
 
 # --------------------------------------------------------------------
 
@@ -243,100 +229,5 @@ cdef inline tuple toStagOwnershipRanges(PetscInt dim,
     if dim > 2:
         ranges.append(array_i(p, lz))
     return tuple(ranges)
-
-# --------------------------------------------------------------------
-
-# HOW SHOULD VEC GET ARRAY WORK FOR DMSTAG?
-# NEEDS TO TAKE INTO ACCOUNT DUMMY/GHOST ENTRIES...
-cdef class _DMStag_Vec_array(object):
-
-    cdef _Vec_buffer vecbuf
-    cdef readonly tuple starts, sizes, nextra
-    cdef readonly tuple shape, strides
-    cdef readonly ndarray array
-
-    def __cinit__(self, DMStag da, Vec vec, bint DOF=False):
-        #
-        cdef PetscInt dim=0, dof=0
-        CHKERR( DMDAGetInfo(da.dm,
-                            &dim, NULL, NULL, NULL, NULL, NULL, NULL,
-                            &dof, NULL, NULL, NULL, NULL, NULL) )
-        cdef PetscInt lxs=0, lys=0, lzs=0
-        cdef PetscInt lxm=0, lym=0, lzm=0
-        CHKERR( DMDAGetCorners(da.dm,
-                               &lxs, &lys, &lzs,
-                               &lxm, &lym, &lzm) )
-        cdef PetscInt gxs=0, gys=0, gzs=0
-        cdef PetscInt gxm=0, gym=0, gzm=0
-        CHKERR( DMDAGetGhostCorners(da.dm,
-                                    &gxs, &gys, &gzs,
-                                    &gxm, &gym, &gzm) )
-        #
-        cdef PetscInt n=0
-        CHKERR( VecGetLocalSize(vec.vec, &n) )
-        cdef PetscInt xs, ys, zs, xm, ym, zm
-        if (n == lxm*lym*lzm*dof):
-            xs, ys, zs = lxs, lys, lzs
-            xm, ym, zm = lxm, lym, lzm
-        elif (n == gxm*gym*gzm*dof):
-            xs, ys, zs = gxs, gys, gzs
-            xm, ym, zm = gxm, gym, gzm
-        else:
-            raise ValueError(
-                "Vector local size %d is not compatible "
-                "with DMDA local sizes %s"
-                % (<Py_ssize_t>n, toDims(dim, lxm, lym, lzm)))
-        #
-        cdef tuple starts = toDims(dim, xs, ys, zs)
-        cdef tuple sizes  = toDims(dim, xm, ym, zm)
-        cdef Py_ssize_t k = <Py_ssize_t>sizeof(PetscScalar)
-        cdef Py_ssize_t f = <Py_ssize_t>dof
-        cdef Py_ssize_t d = <Py_ssize_t>dim
-        cdef tuple shape   = toDims(dim, xm, ym, zm)
-        cdef tuple strides = (k*f, k*f*xm, k*f*xm*ym)[:d]
-        if DOF or f > 1: shape   += (f,)
-        if DOF or f > 1: strides += (k,)
-        #
-        self.vecbuf = _Vec_buffer(vec)
-        self.starts = starts
-        self.sizes = sizes
-        self.shape = shape
-        self.strides = strides
-
-    cdef int acquire(self) except -1:
-        self.vecbuf.acquire()
-        if self.array is None:
-            self.array = asarray(self.vecbuf)
-            self.array.shape = self.shape
-            self.array.strides = self.strides
-        return 0
-
-    cdef int release(self) except -1:
-        self.vecbuf.release()
-        self.array = None
-        return 0
-
-    #
-
-    def __getitem__(self, index):
-        self.acquire()
-        index = adjust_index_exp(self.starts, index)
-        return self.array[index]
-
-    def __setitem__(self, index, value):
-        self.acquire()
-        index = adjust_index_exp(self.starts, index)
-        self.array[index] = value
-
-    # 'with' statement (PEP 343)
-
-    def __enter__(self):
-        self.acquire()
-        return self
-
-    def __exit__(self, *exc):
-        self.release()
-        return None
-
 
 # --------------------------------------------------------------------

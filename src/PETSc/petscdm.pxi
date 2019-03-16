@@ -18,6 +18,7 @@ cdef extern from * nogil:
     PetscDMType DMP4EST
     PetscDMType DMP8EST
     PetscDMType DMSWARM
+    PetscDMType DMPRODUCT
 
     ctypedef enum PetscDMBoundaryType"DMBoundaryType":
         DM_BOUNDARY_NONE
