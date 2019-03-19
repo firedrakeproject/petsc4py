@@ -105,11 +105,11 @@ cdef class DMStag(DM):
 
     def setStencilWidth(self,swidth):
         cdef PetscInt sw = asInt(swidth)
-        #CHKERR( DMStagSetStencilWidth(self.dm, sw) )
+        CHKERR( DMStagSetStencilWidth(self.dm, sw) )
 
     def setStencilType(self, ghosttype):
         cdef PetscDMStagStencilType stype = asStagStencil(ghosttype)
-        #CHKERR( DMStagSetGhostType(self.dm, stype) )
+        CHKERR( DMStagSetGhostType(self.dm, stype) )
 
     def setBoundaryTypes(self, boundary_types):
         cdef PetscDMBoundaryType btx = DM_BOUNDARY_NONE
@@ -205,7 +205,7 @@ cdef class DMStag(DM):
         
     def getStencilType(self):
         cdef PetscDMStagStencilType stype = DMSTAG_STENCIL_BOX
-        #CHKERR( DMStagGetGhostType(self.dm, &stype) )
+        CHKERR( DMStagGetGhostType(self.dm, &stype) )
         return toStagStencil(stype)
 
     def getOwnershipRanges(self):
@@ -213,7 +213,7 @@ cdef class DMStag(DM):
         cdef const_PetscInt *lx = NULL, *ly = NULL, *lz = NULL
         CHKERR( DMGetDimension(self.dm, &dim) )
         CHKERR( DMStagGetNumRanks(self.dm, &m, &n, &p) )
-        #CHKERR( DMStagGetOwnershipRanges(self.dm, &lx, &ly, &lz) )
+        CHKERR( DMStagGetOwnershipRanges(self.dm, &lx, &ly, &lz) )
         return toStagOwnershipRanges(dim, m, n, p, lx, ly, lz)
 
     def getBoundaryTypes(self):
