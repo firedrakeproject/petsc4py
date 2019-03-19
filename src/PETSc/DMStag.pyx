@@ -44,7 +44,7 @@ cdef class DMStag(DM):
     StencilType       = DMStagStencilType
     StencilLocation   = DMStagStencilLocation
 
-    def createND(self, dim, dofs, sizes, boundary_types, stencil_type, stencil_width, proc_sizes=None, ownership_ranges=None, comm=None):
+    def createND(self, dim, dofs, sizes, boundary_types, stencil_type, stencil_width, proc_sizes=None, ownership_ranges=None, comm=None, setUp=True):
         
         # ndim
         cdef PetscInt ndim = asInt(dim)
@@ -96,7 +96,8 @@ cdef class DMStag(DM):
         if dim == 3:
             CHKERR( DMStagCreate3d(ccomm, btx, bty, btz, M, N, P, m, n, p, dof0, dof1, dof2, dof3, stype, swidth, lx, ly, lz, &newda) )
         PetscCLEAR(self.obj); self.dm = newda
-        CHKERR( DMSetUp(self.dm) )
+        if setUp:
+            CHKERR( DMSetUp(self.dm) )
         return self
             
     # Setters
