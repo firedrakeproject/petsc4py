@@ -44,22 +44,24 @@ cdef class DMStag(DM):
     StencilType       = DMStagStencilType
     StencilLocation   = DMStagStencilLocation
 
-    def createND(self, dim, dofs, sizes, boundary_types, stencil_type, stencil_width, proc_sizes=None, ownership_ranges=None, comm=None, setUp=True):
+    def create(self, dim, dofs=None, sizes=None, boundary_types=None, stencil_type=None, stencil_width=None, proc_sizes=None, ownership_ranges=None, comm=None, setUp=False):
         
         # ndim
         cdef PetscInt ndim = asInt(dim)
         
         # sizes
-        cdef tuple gsizes = tuple(sizes)
+        cdef object gsizes = sizes
         cdef PetscInt nsizes=PETSC_DECIDE, M=1, N=1, P=1
-        nsizes = asStagDims(gsizes, &M, &N, &P)
-        assert(nsizes==ndim)
+        if sizes is not None:
+            nsizes = asStagDims(gsizes, &M, &N, &P)
+            assert(nsizes==ndim)
            
         # dofs
-        cdef tuple cdofs = tuple(dofs)
+        cdef object cdofs = dofs
         cdef PetscInt ndofs=PETSC_DECIDE, dof0=1, dof1=0, dof2=0, dof3=0
-        ndofs = asDofs(cdofs, &dof0, &dof1, &dof2, &dof3)
-        assert(ndofs==ndim+1)
+        if dofs is not None:
+            ndofs = asDofs(cdofs, &dof0, &dof1, &dof2, &dof3)
+            assert(ndofs==ndim+1)
 
         # boundary types
         cdef PetscDMBoundaryType btx = DM_BOUNDARY_NONE
@@ -68,8 +70,12 @@ cdef class DMStag(DM):
         asBoundary(boundary_types, &btx, &bty, &btz)
         
         # stencil
-        cdef PetscInt swidth = asInt(stencil_width)
-        cdef PetscDMStagStencilType stype = asStagStencil(stencil_type)
+        cdef PetscInt swidth = 0
+        if stencil_width is not None:
+            swidth = asInt(stencil_width)
+        cdef PetscDMStagStencilType stype = DMSTAG_STENCIL_NONE
+        if stencil_type is not None:
+            stype = asStagStencil(stencil_type)
 
         # comm
         cdef MPI_Comm ccomm = def_Comm(comm, PETSC_COMM_DEFAULT)
@@ -101,8 +107,6 @@ cdef class DMStag(DM):
         return self
             
     # Setters
-    def setDim(self, dim):
-        return self.setDimension(dim)
 
     def setStencilWidth(self,swidth):
         cdef PetscInt sw = asInt(swidth)

@@ -13,17 +13,16 @@ class BaseTestDMStag(object):
 
     def setUp(self):
         dim = len(self.SIZES)
-        if dim == 1: simpledofs = (1,0)
-        if dim == 2: simpledofs = (1,0,0)
-        if dim == 3: simpledofs = (1,0,0,0)
-        self.da = PETSc.DMStag().createND(dim,self.DOF, self.SIZES, self.BOUNDARY, self.STENCIL, self.SWIDTH,
-                                      comm=self.COMM, proc_sizes=self.PROC_SIZES, ownership_ranges=self.OWNERSHIP_RANGES)
+        self.da = PETSc.DMStag().create(dim,
+                                        dofs=self.DOFS, sizes=self.SIZES, boundary_types=self.BOUNDARY,
+                                        stencil_type=self.STENCIL, stencil_width=self.SWIDTH,
+                                        comm=self.COMM, proc_sizes=self.PROC_SIZES, ownership_ranges=self.OWNERSHIP_RANGES, setUp=True)
         
-        self.directda = PETSc.DMStag().createND(dim, simpledofs, [4,]*dim, ['none',]*dim, 'none', 0, setUp=False)
+        self.directda = PETSc.DMStag().create(dim)
         self.directda.setStencilType(self.STENCIL)
         self.directda.setStencilWidth(self.SWIDTH)
         self.directda.setBoundaryTypes(self.BOUNDARY)
-        self.directda.setDof(self.DOF)
+        self.directda.setDof(self.DOFS)
         self.directda.setGlobalSizes(self.SIZES)
         if self.PROC_SIZES is not None:
             self.directda.setProcSizes(self.PROC_SIZES)
@@ -185,76 +184,74 @@ class BaseTestDMStag_3D(BaseTestDMStag):
 
 class TestDMStag_1D_W0_N11(BaseTestDMStag_1D, unittest.TestCase):
     SWIDTH = 0
-    DOF = (1,1)
+    DOFS = (1,1)
     NEWDOF = (2,1)
 class TestDMStag_1D_W0_N21(BaseTestDMStag_1D, unittest.TestCase):
     SWIDTH = 0
-    DOF = (2,1)
+    DOFS = (2,1)
     NEWDOF = (2,2)
 class TestDMStag_1D_W0_N12(BaseTestDMStag_1D, unittest.TestCase):
     SWIDTH = 0
-    DOF = (1,2)
+    DOFS = (1,2)
     NEWDOF = (2,2)
 class TestDMStag_1D_W2_N11(BaseTestDMStag_1D, unittest.TestCase):
     SWIDTH = 2
-    DOF = (1,1)
+    DOFS = (1,1)
     NEWDOF = (2,1)
 class TestDMStag_1D_W2_N21(BaseTestDMStag_1D, unittest.TestCase):
     SWIDTH = 2
-    DOF = (2,1)
+    DOFS = (2,1)
     NEWDOF = (2,2)
 class TestDMStag_1D_W2_N12(BaseTestDMStag_1D, unittest.TestCase):
     SWIDTH = 2
-    DOF = (1,2)
+    DOFS = (1,2)
     NEWDOF = (2,2)
 
 class TestDMStag_2D_W0_N112(BaseTestDMStag_2D, unittest.TestCase):
-    DOF = (1,1,2)
+    DOFS = (1,1,2)
     SWIDTH = 0
     NEWDOF = (2,2,2)
 class TestDMStag_2D_W2_N112(BaseTestDMStag_2D, unittest.TestCase):
-    DOF = (1,1,2)
+    DOFS = (1,1,2)
     SWIDTH = 2
     NEWDOF = (2,2,2)
 class TestDMStag_2D_PXY(BaseTestDMStag_2D, unittest.TestCase):
     SIZES = [13*SCALE,17*SCALE]
-    DOF = (1,1,2)
+    DOFS = (1,1,2)
     SWIDTH = 5
     BOUNDARY = (PERIODIC,)*2
     NEWDOF = (2,2,2)
 class TestDMStag_2D_GXY(BaseTestDMStag_2D, unittest.TestCase):
     SIZES = [13*SCALE,17*SCALE]
-    DOF = (1,1,2)
+    DOFS = (1,1,2)
     SWIDTH = 5
     BOUNDARY = (GHOSTED,)*2
     NEWDOF = (2,2,2)
 
 class TestDMStag_3D_W0_N1123(BaseTestDMStag_3D, unittest.TestCase):
-    DOF = (1,1,2,3)
+    DOFS = (1,1,2,3)
     SWIDTH = 0
     NEWDOF = (2,2,3,3)
 class TestDMStag_3D_W2_N1123(BaseTestDMStag_3D, unittest.TestCase):
-    DOF = (1,1,2,3)
+    DOFS = (1,1,2,3)
     SWIDTH = 2
     NEWDOF = (2,2,3,3)
 class TestDMStag_3D_PXYZ(BaseTestDMStag_3D, unittest.TestCase):
     SIZES = [11*SCALE,13*SCALE,17*SCALE]
-    DOF = (1,1,2,3)
+    DOFS = (1,1,2,3)
     NEWDOF = (2,2,3,3)
     SWIDTH = 3
     BOUNDARY = (PERIODIC,)*3
 class TestDMStag_3D_GXYZ(BaseTestDMStag_3D, unittest.TestCase):
     SIZES = [11*SCALE,13*SCALE,17*SCALE]
-    DOF = (1,1,2,3)
+    DOFS = (1,1,2,3)
     NEWDOF = (2,2,3,3)
     SWIDTH = 3
     BOUNDARY = (GHOSTED,)*3
 
 # --------------------------------------------------------------------
 
-#3D FAILING FOR KNOWN REASONS- STENCIL NONE
-#RESTORE WHEN FIXED
-DIM = (1,2)
+DIM = (1,2,3)
 DOF0 = (0,1,2,3)
 DOF1 = (0,1,2,3)
 DOF2 = (0,1,2,3)
@@ -267,9 +264,6 @@ class TestDMStagCreate(unittest.TestCase):
     pass
 counter = 0
 for dim in DIM:
-    if dim == 1: simpledofs = (1,0)
-    if dim == 2: simpledofs = (1,0,0)
-    if dim == 3: simpledofs = (1,0,0,0)
     for dof0 in DOF0:
         for dof1 in DOF1:
             for dof2 in DOF2:
@@ -277,28 +271,30 @@ for dim in DIM:
                 for dof3 in DOF3:
                     if dim == 2 and dof3 > 0: continue
                     if dof0==0 and dof1==0 and dof2==0 and dof3==0: continue
-                    dof = [dof0,dof1,dof2,dof3][:dim+1]
+                    dofs = [dof0,dof1,dof2,dof3][:dim+1]
                     for boundary in BOUNDARY_TYPE:
                         for stencil in STENCIL_TYPE:
                             if stencil == 'none' and boundary != 'none': continue
                             for width in STENCIL_WIDTH:
                                 if stencil == 'none' and width > 0: continue
                                 if stencil in ['star','box'] and width == 0: continue
-                                kargs = dict(dim=dim, dof=dof, boundary_type=boundary, 
-                                stencil_type=stencil, stencil_width=width, simpledofs=simpledofs)
+                                kargs = dict(dim=dim, dofs=dofs, boundary_type=boundary, 
+                                stencil_type=stencil, stencil_width=width)
                                 def testCreate(self,kargs=kargs):
                                     kargs = dict(kargs)
-                                    cda = PETSc.DMStag().createND(kargs['dim'], kargs['dof'], [8*SCALE,]*kargs['dim'], 
-                                    [kargs['boundary_type'],]*kargs['dim'], kargs['stencil_type'], kargs['stencil_width'])
-# MAYBE WE MODIFY CREATE ROUTINE TO TAKE DIM AS THE ONLY REQUIRED ARGUMENT, AND DEFAULT ON THE REST?
-# YES DO THIS!
-# This allows the usage pattern DMStag().create(DIM), DMStag.setFromOptions(), etc.
-                                    dda = PETSc.DMStag().createND(kargs['dim'], kargs['simpledofs'], [4*SCALE,]*kargs['dim'], 
-                                    ['none',]*kargs['dim'], 'none', 0, setUp=False)
+                                    cda = PETSc.DMStag().create(kargs['dim'],
+                                    dofs = kargs['dofs'], 
+                                    sizes = [8*SCALE,]*kargs['dim'], 
+                                    boundary_types = [kargs['boundary_type'],]*kargs['dim'], 
+                                    stencil_type = kargs['stencil_type'], 
+                                    stencil_width = kargs['stencil_width'], 
+                                    setUp=True)
+
+                                    dda = PETSc.DMStag().create(kargs['dim'])
                                     dda.setStencilType(kargs['stencil_type'])
                                     dda.setStencilWidth(kargs['stencil_width'])
                                     dda.setBoundaryTypes([kargs['boundary_type'],]*kargs['dim'])
-                                    dda.setDof(kargs['dof'])
+                                    dda.setDof(kargs['dofs'])
                                     dda.setGlobalSizes([8*SCALE,]*kargs['dim'])
                                     dda.setUp()
 
@@ -327,7 +323,7 @@ for dim in DIM:
                                     disFirstRank = dda.getIsFirstRank()
                                                            
                                     self.assertEqual(cdim,kargs['dim'])
-                                    self.assertEqual(cdof,tuple(kargs['dof']))
+                                    self.assertEqual(cdof,tuple(kargs['dofs']))
 # THIS TEST NEEDS WORK..
 # ACTUALLY REALLY WE SHOULD BE RETURNING THE CORRECT BOUNDARY TYPES HERE IE STRINGS!
                                     #self.assertEqual(cboundary,[kargs['boundary_type'],]*kargs['dim'])
@@ -376,7 +372,7 @@ for dim in DIM:
                                         testCreate)
                                 del testCreate
                                 counter += 1
-del counter, dim, dof, dof0, dof1, dof2, dof3, boundary, stencil, width, simpledofs
+del counter, dim, dofs, dof0, dof1, dof2, dof3, boundary, stencil, width
 
 # --------------------------------------------------------------------
 
