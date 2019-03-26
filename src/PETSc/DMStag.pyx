@@ -228,7 +228,7 @@ cdef class DMStag(DM):
         cdef PetscDMBoundaryType btz = DM_BOUNDARY_NONE
         CHKERR( DMGetDimension(self.dm, &dim) )
         CHKERR( DMStagGetBoundaryTypes(self.dm, &btx, &bty, &btz) )
-        return toStagDims(dim, btx, bty, btz)
+        return toStagBoundaryTypes(dim, btx, bty, btz)
 
     def getIsFirstRank(self):
         cdef PetscBool rank0=PETSC_FALSE, rank1=PETSC_FALSE, rank2=PETSC_FALSE

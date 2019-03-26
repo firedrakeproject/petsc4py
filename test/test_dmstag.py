@@ -58,17 +58,6 @@ class BaseTestDMStag(object):
         self.assertEqual(datype,'product')
         cda.destroy()
 
-# This breaks, because DMGetCoordinates seg-faults when DMProduct is used for the coordinates
-        # c = self.directda.getCoordinates()
-        # self.directda.setCoordinates(c)
-        # print(c.getType())
-        # c.destroy()
-
-        # gc = self.directda.getCoordinatesLocal()
-        # print(gc.getType())
-        # gc.destroy()
-
-
 
     def testGetVec(self):
         vg = self.da.getGlobalVec()
@@ -91,21 +80,7 @@ class BaseTestDMStag(object):
 
     def testGetOther(self):
         lgmap = self.da.getLGMap()
-
-    def testOwnershipRanges(self):
-        dim = self.da.getDim()
-        ownership_ranges = self.da.getOwnershipRanges()
-        procsizes = self.da.getProcSizes()
-        self.assertEqual(len(procsizes), len(ownership_ranges))
-        self.assertEqual(len(procsizes), dim)
-        self.assertEqual(len(ownership_ranges), dim)
-        for i,m in enumerate(procsizes):
-            self.assertEqual(m, len(ownership_ranges[i]))
-
-        downership_ranges = self.directda.getOwnershipRanges()
-        dprocsizes = self.directda.getProcSizes()
-        self.assertEqual(procsizes, dprocsizes)
-        self.assertEqual(ownership_ranges, downership_ranges)
+        dlgmap = self.directda.getLGMap()
 
     def testDof(self):
         dim = self.da.getDim()
@@ -137,7 +112,6 @@ class BaseTestDMStag(object):
         dmTo = self.da.createCompatibleDMStag(self.NEWDOF)
         vecTo = dmTo.createGlobalVec()
         self.da.migrateVec(vec, dmTo, vecTo)
-# WHAT CAN WE CHECK HERE?
 
     def testDMDAInterface(self):
         self.da.setCoordinateDMType('stag')
@@ -157,8 +131,6 @@ class BaseTestDMStag(object):
             da,davec = self.da.VecSplitToDMDA(vec,'down_left',-dofs[1])
             da,davec = self.da.VecSplitToDMDA(vec,'left',-dofs[2])
             da,davec = self.da.VecSplitToDMDA(vec,'element',-dofs[3])
-# ACTUALLY CHECK STUFF HERE
-# SIZING, DA TYPES, ETC.
 
 GHOSTED  = PETSc.DM.BoundaryType.GHOSTED
 PERIODIC = PETSc.DM.BoundaryType.PERIODIC
@@ -179,8 +151,6 @@ class BaseTestDMStag_3D(BaseTestDMStag):
     BOUNDARY = [NONE, NONE, NONE]
 
 # --------------------------------------------------------------------
-
-# DO SOME EXPLICIT OWERNSHIPS RANGES AND PROC SIZES TESTING HERE
 
 class TestDMStag_1D_W0_N11(BaseTestDMStag_1D, unittest.TestCase):
     SWIDTH = 0
@@ -309,7 +279,9 @@ for dim in DIM:
                                     cstarts, csizes, cnextra  = cda.getCorners()
                                     cisLastRank = cda.getIsLastRank()
                                     cisFirstRank = cda.getIsFirstRank()
-
+                                    cownershipranges = cda.getOwnershipRanges()
+                                    cprocsizes = cda.getProcSizes()
+            
                                     ddim = dda.getDim()
                                     ddof = dda.getDof()
                                     dgsizes = dda.getGlobalSizes()
@@ -321,12 +293,12 @@ for dim in DIM:
                                     dstarts, dsizes, dnextra  = dda.getCorners()
                                     disLastRank = dda.getIsLastRank()
                                     disFirstRank = dda.getIsFirstRank()
-                                                           
+                                    downershipranges = dda.getOwnershipRanges()
+                                    dprocsizes = dda.getProcSizes()            
+                                    
                                     self.assertEqual(cdim,kargs['dim'])
                                     self.assertEqual(cdof,tuple(kargs['dofs']))
-# THIS TEST NEEDS WORK..
-# ACTUALLY REALLY WE SHOULD BE RETURNING THE CORRECT BOUNDARY TYPES HERE IE STRINGS!
-                                    #self.assertEqual(cboundary,[kargs['boundary_type'],]*kargs['dim'])
+                                    self.assertEqual(cboundary,tuple([kargs['boundary_type'],]*kargs['dim']))
                                     self.assertEqual(cstencil_type,kargs['stencil_type'])
                                     self.assertEqual(cstencil_width,kargs['stencil_width'])
                                     self.assertEqual(cgsizes,tuple([8*SCALE,]*kargs['dim']))
@@ -344,7 +316,11 @@ for dim in DIM:
                                     self.assertEqual(cnextra,dnextra)
                                     self.assertEqual(cisLastRank,disLastRank)
                                     self.assertEqual(cisFirstRank,disFirstRank)
-                                    
+                                    self.assertEqual(cprocsizes, dprocsizes)
+                                    for co,do in zip(cownershipranges, downershipranges):
+                                        for i,j in zip(co,do):
+                                            self.assertEqual(i,j)
+            
                                     self.assertEqual(cdim+1,len(cdof))
                                     self.assertEqual(cdim,len(cgsizes))
                                     self.assertEqual(cdim,len(clsizes))
@@ -362,7 +338,10 @@ for dim in DIM:
                                         if cisLastRank[i]: self.assertEqual(cnextra[i],1)
                                         if (cnextra[i]==1): self.assertTrue(cisLastRank[i])
                                         if (cisFirstRank[i]): self.assertEqual(cstarts[i],0)
-
+                                    self.assertEqual(len(cprocsizes), len(cownershipranges))
+                                    self.assertEqual(len(cprocsizes), cdim)
+                                    for i,m in enumerate(cprocsizes):
+                                        self.assertEqual(m, len(cownershipranges[i]))    
                                     dda.destroy()
                                     cda.destroy()
                                     

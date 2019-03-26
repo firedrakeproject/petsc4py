@@ -217,6 +217,7 @@ cdef inline tuple asStagOwnershipRanges(object ownership_ranges,
              (toInt(nlz), toInt(p[0])))
     return tuple(ranges)
 
+
 cdef inline tuple toStagOwnershipRanges(PetscInt dim,
                                     PetscInt m, PetscInt n, PetscInt p,
                                     const_PetscInt *lx,
@@ -230,4 +231,13 @@ cdef inline tuple toStagOwnershipRanges(PetscInt dim,
         ranges.append(array_i(p, lz))
     return tuple(ranges)
 
+cdef inline object toStagBoundary(PetscDMBoundaryType btype):
+    if   btype == DM_BOUNDARY_NONE:       return "none"
+    elif btype == DM_BOUNDARY_PERIODIC:   return "periodic"
+    elif btype == DM_BOUNDARY_GHOSTED:    return "ghosted"
+    
+cdef inline tuple toStagBoundaryTypes(PetscInt dim, PetscDMBoundaryType btx, PetscDMBoundaryType bty, PetscDMBoundaryType btz):
+    if dim == 1: return (toStagBoundary(btx), )
+    if dim == 2: return (toStagBoundary(btx), toStagBoundary(bty))
+    if dim == 3: return (toStagBoundary(btx), toStagBoundary(bty), toStagBoundary(btz))
 # --------------------------------------------------------------------
