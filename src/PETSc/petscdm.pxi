@@ -9,6 +9,7 @@ cdef extern from * nogil:
     PetscDMType DMSHELL
     PetscDMType DMMESH
     PetscDMType DMPLEX
+    PetscDMType DMSTAG
     PetscDMType DMREDUNDANT
     PetscDMType DMPATCH
     PetscDMType DMMOAB
@@ -17,6 +18,7 @@ cdef extern from * nogil:
     PetscDMType DMP4EST
     PetscDMType DMP8EST
     PetscDMType DMSWARM
+    PetscDMType DMPRODUCT
 
     ctypedef enum PetscDMBoundaryType"DMBoundaryType":
         DM_BOUNDARY_NONE
@@ -40,7 +42,21 @@ cdef extern from * nogil:
     int DMSetFromOptions(PetscDM)
     int DMSetUp(PetscDM)
 
+    int DMGetAdjacency(PetscDM,PetscInt,PetscBool*,PetscBool*)
+    int DMSetAdjacency(PetscDM,PetscInt,PetscBool,PetscBool)
+    int DMGetBasicAdjacency(PetscDM,PetscBool*,PetscBool*)
+    int DMSetBasicAdjacency(PetscDM,PetscBool,PetscBool)
+
+    int DMSetNumFields(PetscDM,PetscInt)
+    int DMGetNumFields(PetscDM,PetscInt*)
+    int DMSetField(PetscDM,PetscInt,PetscDMLabel,PetscObject)
+    int DMAddField(PetscDM,PetscDMLabel,PetscObject)
+    int DMGetField(PetscDM,PetscInt,PetscDMLabel*,PetscObject*)
+    int DMCopyFields(PetscDM,PetscDM)
+    int DMCreateDS(PetscDM)
+    int DMClearDS(PetscDM)
     int DMGetDS(PetscDM,PetscDS*)
+    int DMCopyDS(PetscDM,PetscDM)
     int DMCopyDisc(PetscDM,PetscDM)
 
     int DMGetBlockSize(PetscDM,PetscInt*)
