@@ -128,16 +128,16 @@ cdef class DMPlex(DM):
         return subdm
 
     def markSubpointMap_Closure(self, filter, filterValue, height, subpointmap):
-        CHKERR( DMPlexMarkSubpointMap_Closure(self.dm, filter, filterValue, height, subpointmap) )
+        CHKERR( DMPlexMarkSubpointMap_Closure(self.dm, <PetscDMLabel>filter, <PetscInt>filterValue, <PetscInt>height, <PetscDMLabel>subpointmap) )
 
-    def submeshSetTopology(self, subdm, stratumOffsets, stratumSizes, stratumIndices):
-        CHKERR( DMPlexSubmeshSetTopology(self.dm, subdm, stratumOffsets, stratumSizes, stratumIndices) )
+    #def submeshSetTopology(self, subdm, stratumOffsets, stratumSizes, stratumIndices):
+    #    CHKERR( DMPlexSubmeshSetTopology(self.dm, <PetscDM>subdm, <void*>stratumOffsets, <void*>stratumSizes, <void**>stratumIndices) )
 
-    def submeshSetCoordinates(self, subdm, stratumOffsets, stratumSizes, stratumIndices):
-        CHKERR( DMPlexSubmeshSetCoordinates(self.dm, subdm, stratumOffsets, stratumSizes, stratumIndices) )
+    #def submeshSetCoordinates(self, subdm, stratumOffsets, stratumSizes, stratumIndices):
+    #    CHKERR( DMPlexSubmeshSetCoordinates(self.dm, <PetscDM>subdm, <void*>stratumOffsets, <void*>stratumSizes, <void**>stratumIndices) )
 
     def submeshSetPointSF(self, subdm):
-        CHKERR( DMPlexSubmeshSetPointSF(self.dm, subdm) )
+        CHKERR( DMPlexSubmeshSetPointSF(self.dm, <PetscDM>subdm) )
 
     def getChart(self):
         cdef PetscInt pStart = 0, pEnd = 0
