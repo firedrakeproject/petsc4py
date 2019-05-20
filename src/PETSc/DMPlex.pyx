@@ -127,6 +127,18 @@ cdef class DMPlex(DM):
         CHKERR( DMPlexCreateCohesiveSubmesh(self.dm, flag, NULL, cvalue, &subdm.dm) )
         return subdm
 
+    def markSubpointMap_Closure(self, filter, filterValue, height, subpointmap):
+        CHKERR( DMPlexMarkSubpointMap_Closure(self.dm, filter, filterValue, height, subpointmap) )
+
+    def submeshSetTopology(self, subdm, stratumOffsets, stratumSizes, stratumIndices):
+        CHKERR( DMPlexSubmeshSetTopology(self.dm, subdm, stratumOffsets, stratumSizes, stratumIndices) )
+
+    def submeshSetCoordinates(self, subdm, stratumOffsets, stratumSizes, stratumIndices):
+        CHKERR( DMPlexSubmeshSetCoordinates(self.dm, subdm, stratumOffsets, stratumSizes, stratumIndices) )
+
+    def submeshSetPointSF(self, subdm):
+        CHKERR( DMPlexSubmeshSetPointSF(self.dm, subdm) )
+
     def getChart(self):
         cdef PetscInt pStart = 0, pEnd = 0
         CHKERR( DMPlexGetChart(self.dm, &pStart, &pEnd) )
