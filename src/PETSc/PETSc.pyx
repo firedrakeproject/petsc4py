@@ -145,7 +145,6 @@ include "petscdmplex.pxi"
 include "petscdmstag.pxi"
 include "petscdmcomposite.pxi"
 include "petscdmshell.pxi"
-include "petscdmlabel.pxi"
 include "petscpartitioner.pxi"
 include "petsclinesearch.pxi"
 

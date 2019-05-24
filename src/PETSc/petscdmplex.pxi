@@ -114,12 +114,13 @@ cdef extern from * nogil:
     int DMPlexSetSubpointMap(PetscDM,PetscDMLabel)
     #int DMPlexCreateSubpointIS(PetscDM,PetscIS*)
 
-    int DMPlexMarkSubpointMap_Closure(PetscDM,PetscDMLabel,PetscInt,PetscInt,PetscDMLabel);
-    #int DMPlexSubmeshSetConeSizes(PetscDM,PetscDM,PetscDMLabel,const_PetscInt*,const_PetscInt*,const_PetscInt**);
-    #int DMPlexSubmeshSetCones(PetscDM,PetscDM,const_PetscInt*,const_PetscInt*,const_PetscInt**);
-    int DMPlexSubmeshSetTopology(PetscDM,PetscDM,const_PetscInt*,const_PetscInt*,const_PetscInt**);
-    int DMPlexSubmeshSetCoordinates(PetscDM,PetscDM,const_PetscInt*,const_PetscInt*,const_PetscInt**);
-    int DMPlexSubmeshSetPointSF(PetscDM,PetscDM);
+    int DMPlexCreateSubDMPlex(PetscDM,PetscDM*,PetscDMLabel,PetscInt,PetscInt)
+    #int DMPlexMarkSubpointMap_Closure(PetscDM,PetscDMLabel,PetscInt,PetscInt,PetscDMLabel)
+    #int DMPlexSubmeshSetConeSizes(PetscDM,PetscDM,PetscDMLabel,const_PetscInt*,const_PetscInt*,const_PetscInt**)
+    #int DMPlexSubmeshSetCones(PetscDM,PetscDM,const_PetscInt*,const_PetscInt*,const_PetscInt**)
+    #int DMPlexSubmeshSetTopology(PetscDM,PetscDM,const_PetscInt*,const_PetscInt*,const_PetscInt**)
+    #int DMPlexSubmeshSetCoordinates(PetscDM,PetscDM,const_PetscInt*,const_PetscInt*,const_PetscInt**)
+    #int DMPlexSubmeshSetPointSF(PetscDM,PetscDM);
 
     int DMPlexCreateCoarsePointIS(PetscDM,PetscIS*)
     int DMPlexMarkBoundaryFaces(PetscDM,PetscInt,PetscDMLabel)

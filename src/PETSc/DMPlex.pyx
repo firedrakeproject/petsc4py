@@ -128,80 +128,15 @@ cdef class DMPlex(DM):
         return subdm
 
     def createSubDMPlex(self, filterName, filterValue, height):
-        subplex = DMPlex()
-        tdim = self.getDimension()
-        gdim = self.getCoordinateDim()
-        subtdim = tdim - height
-        #if subtdim < 0:
-        #    raise ValueError("Cannot create mesh with negative topological dimension")
-        subplex.setDimension(subtdim)
-        subplex.setCoordinateDim(gdim)
-        self.markSubpointMap_Closure(subplex, filterName, filterValue, height)
-        #stratumSizes = np.ndarray((subtdim+1,), dtype=IntType)
-        #stratumOffsets = np.ndarray((subtdim+1,), dtype=IntType)
-        #stratumISes = [IS() for _ in range(subtdim+1)]
-        """
-        cdef PetscInt tdim = self.getDimension()
-        cdef PetscInt *stratumSizes = <PetscInt *> PyArray_DATA(stratumSizes_)
-        cdef PetscDMLabel csubpointmap = NULL
-        CHKERR( DMPlexGetSubpointMap(<PetscDM>self.dm, &csubpointmap) )
-        for d in 0 <= d < tdim + 1:
-            CHKERR( DMLabelGetStratumSize(<PetscDMLabel>csubpointmap, d, &stratumSizes[d]) )
-
-        cdef PetscInt tdim = self.getDimension()
-        cdef PetscDMLabel csubpointmap = NULL
-        CHKERR( DMPlexGetSubpointMap(<PetscDM>self.dm, &csubpointmap) )
-        cdef PetscIS ix = NULL
-        for d from 0 <= d < tdim + 1:
-            CHKERR( DMLabelGetStratumIS(<PetscDMLabel>csubpointMap, d, &ix) )
-            stratumISes_[d] = ix
-            #if (!stratumISes[d]) SETERRQ(self.comm, PETSC_ERR_PLIB, "Expecting non-null subpoint stratum IS\n");
-            ierr = ISGetIndices(stratumISes[d], &stratumIndices[d]); CHKERRQ(ierr);
-        /* Compute stratum sizes */
-        stratumOffsets[subtdim] = 0;
-        if (subtdim > 0) {
-            stratumOffsets[0] = stratumOffsets[subtdim] + stratumSizes[subtdim];
-        if (subtdim > 1) {
-            stratumOffsets[subtdim - 1] = stratumOffsets[0] + stratumSizes[0];
-        if (subtdim > 2) {
-            stratumOffsets[subtdim - 2] = stratumOffsets[subtdim - 1] + stratumSizes[subtdim - 1];
-        if (subtdim > 3) {
-            SETERRQ(subcomm, PETSC_ERR_PLIB, "Only coded for max 3 dimensional DMs");
-        """
-        #plex.submeshSetTopology(subdm, stratumOffsets, stratumSizes, list stratumIndices_)
-        return subplex
-
-    def markSubpointMap_Closure(self, subplex, filterName, filterValue, height):
-        cdef PetscInt cfilterValue = asInt(filterValue)
-        cdef PetscInt cheight = asInt(height)
-        cdef const_char *cval = NULL
-        _ = str2bytes(filterName, &cval)
+        cdef const_char *cfilterName = NULL
+        _ = str2bytes(filterName, &cfilterName)
         cdef PetscDMLabel cfilter = NULL
-        CHKERR( DMGetLabel(self.dm, cval, &cfilter) )
-        cdef PetscDMLabel csubpointmap = NULL
-        #CHKERR( DMLabelCreate(, &csubpointmap) )
-        CHKERR( DMPlexGetSubpointMap(<PetscDM>subplex.dm, &csubpointmap) )
-        CHKERR( DMPlexMarkSubpointMap_Closure(self.dm, cfilter, cfilterValue, cheight, csubpointmap) )
-
-    def submeshSetTopology(self, subdm, stratumOffsets, stratumSizes, list stratumIndices_):
-        cdef PetscInt i, d = asInt(len(stratumIndices_))
-        cdef PetscInt **stratumIndices = <PetscInt **>malloc(<size_t>d*sizeof(PetscInt*))
-        #ierr = ISGetIndices(stratumISes[d], &stratumIndices[d]); CHKERRQ(ierr);
-        for i from 0 <= i < d:
-            stratumIndices[i] = <PetscInt*> PyArray_DATA(stratumIndices_[i])
-        CHKERR( DMPlexSubmeshSetTopology(self.dm, <PetscDM>subdm, <PetscInt*> PyArray_DATA(stratumOffsets), <PetscInt*> PyArray_DATA(stratumSizes), stratumIndices) )
-        free(stratumIndices)
-
-    def submeshSetCoordinates(self, subdm, stratumOffsets, stratumSizes, stratumIndices_):
-        cdef PetscInt i, d = asInt(len(stratumIndices_))
-        cdef PetscInt **stratumIndices = <PetscInt **>malloc(<size_t>d*sizeof(PetscInt*))
-        for i from 0 <= i < d:
-            stratumIndices[i] = <PetscInt*> PyArray_DATA(stratumIndices_[i])
-        CHKERR( DMPlexSubmeshSetCoordinates(self.dm, <PetscDM>subdm, <PetscInt*> PyArray_DATA(stratumOffsets), <PetscInt*> PyArray_DATA(stratumSizes), stratumIndices) )
-        free(stratumIndices)
-
-    def submeshSetPointSF(self, subdm):
-        CHKERR( DMPlexSubmeshSetPointSF(self.dm, <PetscDM>subdm) )
+        CHKERR( DMGetLabel(self.dm, cfilterName, &cfilter) )
+        cdef cfilterValue = asInt(filterValue)
+        cdef cheight = asInt(height)
+        cdef DM subplex = DMPlex()
+        CHKERR( DMPlexCreateSubDMPlex(self.dm, &subplex.dm, cfilter, cfilterValue, cheight) )
+        return subplex
 
     def getChart(self):
         cdef PetscInt pStart = 0, pEnd = 0
