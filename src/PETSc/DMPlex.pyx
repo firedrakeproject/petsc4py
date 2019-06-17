@@ -435,29 +435,6 @@ cdef class DMPlex(DM):
         CHKERR( DMPlexCreateCubeBoundary(self.dm, ilow, iup, ifac) )
         return self
 
-    def markSubmeshIntersection(self, labelName, val, filterName, filterValues, filterHeight):
-        if not self.hasLabel(labelName):
-            self.createLabel(labelName)
-        cdef PetscInt cval    = asInt(val)
-        if not self.hasLabel(filterName):
-            raise RuntimeError("Unknown filterName, %s" % filterName)
-        filterValueSize = len(filterValues)
-        cdef cfilterValueSize = asInt(filterValueSize)
-        cdef PetscInt *cfilterValues = <PetscInt*> malloc(<size_t>filterValueSize*sizeof(PetscInt))
-        cdef PetscInt i
-        for i from 0 <= i < cfilterValueSize:
-            cfilterValues[i] = asInt(filterValues[i])
-        cdef PetscInt cfilterHeight = asInt(filterHeight)
-        cdef const_char *cptr = NULL
-        cdef PetscDMLabel clabel = NULL
-        _ = str2bytes(labelName, &cptr)
-        CHKERR( DMGetLabel(self.dm, cptr, &clabel) )
-        cdef PetscDMLabel cfilter = NULL
-        _ = str2bytes(filterName, &cptr)
-        CHKERR( DMGetLabel(self.dm, cptr, &cfilter) )
-        CHKERR( DMPlexMarkSubmeshIntersection(self.dm, clabel, cval, cfilter, cfilterValues, cfilterValueSize, cfilterHeight) )
-        free(cfilterValues)
-
     def markBoundaryFaces(self, label, value=None):
         cdef PetscInt ival = PETSC_DETERMINE
         if value is not None: ival = asInt(value)

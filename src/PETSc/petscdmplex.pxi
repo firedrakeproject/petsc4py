@@ -123,7 +123,6 @@ cdef extern from * nogil:
     #int DMPlexSubmeshSetPointSF(PetscDM,PetscDM);
 
     int DMPlexCreateCoarsePointIS(PetscDM,PetscIS*)
-    int DMPlexMarkSubmeshIntersection(PetscDM,PetscDMLabel,PetscInt,PetscDMLabel,PetscInt*,PetscInt,PetscInt)
     int DMPlexMarkBoundaryFaces(PetscDM,PetscInt,PetscDMLabel)
     #int DMPlexLabelComplete(PetscDM,PetscDMLabel)
     #int DMPlexLabelCohesiveComplete(PetscDM,PetscDMLabel,PetscBool,PetscDM)
