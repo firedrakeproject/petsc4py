@@ -141,7 +141,7 @@ cdef class DMPlex(DM):
     def createSubpointIS(self):
         cdef IS iset = IS()
         CHKERR( DMPlexCreateSubpointIS(self.dm, &iset.iset) )
-        return iset.getIndices()
+        return iset
 
     def getChart(self):
         cdef PetscInt pStart = 0, pEnd = 0
