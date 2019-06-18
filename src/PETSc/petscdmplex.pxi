@@ -112,7 +112,7 @@ cdef extern from * nogil:
     #int DMPlexCreateHybridMesh(PetscDM,PetscDMLabel,PetscDMLabel*,PetscDM*)
     int DMPlexGetSubpointMap(PetscDM,PetscDMLabel*)
     int DMPlexSetSubpointMap(PetscDM,PetscDMLabel)
-    #int DMPlexCreateSubpointIS(PetscDM,PetscIS*)
+    int DMPlexCreateSubpointIS(PetscDM,PetscIS*)
 
     int DMPlexCreateSubDMPlex(PetscDM,PetscDM*,PetscDMLabel,PetscInt,PetscInt)
     #int DMPlexMarkSubpointMap_Closure(PetscDM,PetscDMLabel,PetscInt,PetscInt,PetscDMLabel)
