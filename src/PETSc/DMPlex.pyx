@@ -644,3 +644,15 @@ cdef class DMPlex(DM):
         CHKERR( DMPlexConstructGhostCells(self.dm, cname, &numGhostCells, &dmGhosted))
         PetscCLEAR(self.obj); self.dm = dmGhosted
         return toInt(numGhostCells)
+
+    @staticmethod
+    def distributeToComm(dmOld, overlap, comm not None):
+        cdef DMPlex dm = DMPlex()
+        cdef PetscDM odm = NULL
+        cdef SF migrationSF = SF()
+        cdef MPI_Comm ccomm = def_Comm(comm, PETSC_COMM_DEFAULT)
+        cdef coverlap = asInt(overlap)
+        if dmOld is not None:
+            odm = (<DM?>dmOld).dm
+        CHKERR( DMPlexDistributeToComm(odm, coverlap, ccomm, &migrationSF.sf, &dm.dm) )
+        return migrationSF, dm

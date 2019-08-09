@@ -187,6 +187,19 @@ cdef class SF(Object):
                                      <const void*>PyArray_DATA(leafdata),
                                      <void*>PyArray_DATA(leafupdate), cop) )
 
+
+    @staticmethod
+    def createSectionMigrationSF(pointSF, old, Section new_ not None):
+        cdef SF sf = SF()
+        cdef PetscSection cold = NULL
+        cdef PetscSF psf = NULL
+        if pointSF is not None:
+            psf = (<SF?>pointSF).sf
+        if old is not None:
+            cold = (<Section?>old).sec
+        CHKERR( PetscSFCreateSectionMigrationSF(psf, cold, new_.sec, &sf.sf) )
+        return sf
+
 # --------------------------------------------------------------------
 
 del SFType
