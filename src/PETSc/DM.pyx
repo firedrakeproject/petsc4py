@@ -308,9 +308,9 @@ cdef class DM(Object):
         CHKERR( DMCreateInjection(self.dm, dm.dm, &inject.mat) )
         return inject
 
-    def createAggregates(self, DM dm):
+    def createRestriction(self, DM dm):
         cdef Mat mat = Mat()
-        CHKERR( DMCreateAggregates(self.dm, dm.dm, &mat.mat) )
+        CHKERR( DMCreateRestriction(self.dm, dm.dm, &mat.mat) )
         return mat
 
     def convert(self, dm_type):
@@ -469,7 +469,8 @@ cdef class DM(Object):
         cdef PetscDMLabel clbl = NULL
         name = str2bytes(name, &cname)
         CHKERR( DMRemoveLabel(self.dm, cname, &clbl) )
-        # CHKERR( DMLabelDestroy(&clbl) )
+        # TODO: Once DMLabel is wrapped, this should return the label, like the C function.
+        CHKERR( DMLabelDestroy(&clbl) )
 
     def getLabelValue(self, name, point):
         cdef PetscInt cpoint = asInt(point), value = 0

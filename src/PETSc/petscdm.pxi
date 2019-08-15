@@ -81,7 +81,7 @@ cdef extern from * nogil:
 
     int DMCreateInterpolation(PetscDM,PetscDM,PetscMat*,PetscVec*)
     int DMCreateInjection(PetscDM,PetscDM,PetscMat*)
-    int DMCreateAggregates(PetscDM,PetscDM,PetscMat*)
+    int DMCreateRestriction(PetscDM,PetscDM,PetscMat*)
 
     int DMConvert(PetscDM,PetscDMType,PetscDM*)
     int DMRefine(PetscDM,MPI_Comm,PetscDM*)
@@ -132,6 +132,7 @@ cdef extern from * nogil:
     int DMGetLabel(PetscDM,const_char*,PetscDMLabel*)
     int DMAddLabel(PetscDM,PetscDMLabel)
     int DMRemoveLabel(PetscDM,const_char[],PetscDMLabel*)
+    int DMLabelDestroy(PetscDMLabel *)
     #int DMCopyLabels(PetscDM,PetscDM)
 
     int DMShellSetGlobalVector(PetscDM,PetscVec)
