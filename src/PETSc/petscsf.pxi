@@ -43,3 +43,6 @@ cdef extern from * nogil:
     int PetscSFFetchAndOpEnd(PetscSF,MPI_Datatype,void*,const void*,void*,MPI_Op)
 
     int PetscSFCreateSectionMigrationSF(PetscSF,PetscSection,PetscSection,PetscSF*)
+
+    int PetscSFCompose(PetscSF,PetscSF,PetscSF*)
+    int PetscSFComposeInverse(PetscSF,PetscSF,PetscSF*)

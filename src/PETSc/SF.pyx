@@ -200,6 +200,17 @@ cdef class SF(Object):
         CHKERR( PetscSFCreateSectionMigrationSF(psf, cold, new_.sec, &sf.sf) )
         return sf
 
+    # Can't take compose, since that already maps to PetscObjectCompose
+    def composeSF(self, SF sfB not None):
+        cdef SF sf = SF()
+        CHKERR( PetscSFCompose(self.sf, sfB.sf, &sf.sf) )
+        return sf
+
+    def composeInverse(self, SF sfB not None):
+        cdef SF sf = SF()
+        CHKERR( PetscSFComposeInverse(self.sf, sfB.sf, &sf.sf) )
+        return sf
+
 # --------------------------------------------------------------------
 
 del SFType
