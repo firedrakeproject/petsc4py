@@ -7,9 +7,7 @@ cdef extern from * nogil:
     PetscDMType DMCOMPOSITE
     PetscDMType DMSLICED
     PetscDMType DMSHELL
-    PetscDMType DMMESH
     PetscDMType DMPLEX
-    PetscDMType DMSTAG
     PetscDMType DMREDUNDANT
     PetscDMType DMPATCH
     PetscDMType DMMOAB
@@ -19,6 +17,7 @@ cdef extern from * nogil:
     PetscDMType DMP8EST
     PetscDMType DMSWARM
     PetscDMType DMPRODUCT
+    PetscDMType DMSTAG
 
     ctypedef enum PetscDMBoundaryType"DMBoundaryType":
         DM_BOUNDARY_NONE
@@ -104,13 +103,13 @@ cdef extern from * nogil:
 
     int DMGetLocalToGlobalMapping(PetscDM,PetscLGMap*)
 
-    int DMSetDefaultSection(PetscDM,PetscSection)
-    int DMGetDefaultSection(PetscDM,PetscSection*)
-    int DMSetDefaultGlobalSection(PetscDM,PetscSection)
-    int DMGetDefaultGlobalSection(PetscDM,PetscSection*)
-    int DMCreateDefaultSF(PetscDM,PetscSection,PetscSection)
-    int DMGetDefaultSF(PetscDM,PetscSF*)
-    int DMSetDefaultSF(PetscDM,PetscSF)
+    int DMSetSection(PetscDM,PetscSection)
+    int DMGetSection(PetscDM,PetscSection*)
+    int DMSetGlobalSection(PetscDM,PetscSection)
+    int DMGetGlobalSection(PetscDM,PetscSection*)
+    int DMCreateSectionSF(PetscDM,PetscSection,PetscSection)
+    int DMGetSectionSF(PetscDM,PetscSF*)
+    int DMSetSectionSF(PetscDM,PetscSF)
     int DMGetPointSF(PetscDM,PetscSF*)
     int DMSetPointSF(PetscDM,PetscSF)
 

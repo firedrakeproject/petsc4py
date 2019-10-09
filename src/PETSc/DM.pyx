@@ -6,8 +6,6 @@ class DMType(object):
     SLICED    = S_(DMSLICED)
     SHELL     = S_(DMSHELL)
     PLEX      = S_(DMPLEX)
-    STAG      = S_(DMSTAG)
-    PRODUCT   = S_(DMPRODUCT)
     REDUNDANT = S_(DMREDUNDANT)
     PATCH     = S_(DMPATCH)
     MOAB      = S_(DMMOAB)
@@ -16,6 +14,8 @@ class DMType(object):
     P4EST     = S_(DMP4EST)
     P8EST     = S_(DMP8EST)
     SWARM     = S_(DMSWARM)
+    PRODUCT   = S_(DMPRODUCT)
+    STAG      = S_(DMSTAG)
 
 class DMBoundaryType(object):
     NONE     = DM_BOUNDARY_NONE
@@ -283,6 +283,22 @@ cdef class DM(Object):
         PetscINCREF(c.obj)
         return c
 
+    def getBoundingBox(self):
+        cdef PetscInt i,dim=0
+        CHKERR( DMGetCoordinateDim(self.dm, &dim) )
+        cdef PetscReal gmin[3], gmax[3]
+        CHKERR( DMGetBoundingBox(self.dm, gmin, gmax) )
+        return tuple([(toReal(gmin[i]), toReal(gmax[i]))
+                      for i from 0 <= i < dim])
+
+    def getLocalBoundingBox(self):
+        cdef PetscInt i,dim=0
+        CHKERR( DMGetCoordinateDim(self.dm, &dim) )
+        cdef PetscReal lmin[3], lmax[3]
+        CHKERR( DMGetLocalBoundingBox(self.dm, lmin, lmax) )
+        return tuple([(toReal(lmin[i]), toReal(lmax[i]))
+                      for i from 0 <= i < dim])
+
     #
 
     def setMatType(self, mat_type):
@@ -405,32 +421,44 @@ cdef class DM(Object):
 
     #
 
-    def setDefaultSection(self, Section sec):
-        CHKERR( DMSetDefaultSection(self.dm, sec.sec) )
+    def setSection(self, Section sec):
+        CHKERR( DMSetSection(self.dm, sec.sec) )
 
-    def getDefaultSection(self):
+    def getSection(self):
         cdef Section sec = Section()
-        CHKERR( DMGetDefaultSection(self.dm, &sec.sec) )
+        CHKERR( DMGetSection(self.dm, &sec.sec) )
         PetscINCREF(sec.obj)
         return sec
 
-    def setDefaultGlobalSection(self, Section sec):
-        CHKERR( DMSetDefaultGlobalSection(self.dm, sec.sec) )
+    def setGlobalSection(self, Section sec):
+        CHKERR( DMSetGlobalSection(self.dm, sec.sec) )
 
-    def getDefaultGlobalSection(self):
+    def getGlobalSection(self):
         cdef Section sec = Section()
-        CHKERR( DMGetDefaultGlobalSection(self.dm, &sec.sec) )
+        CHKERR( DMGetGlobalSection(self.dm, &sec.sec) )
         PetscINCREF(sec.obj)
         return sec
 
-    def createDefaultSF(self, Section localsec, Section globalsec):
-        CHKERR( DMCreateDefaultSF(self.dm, localsec.sec, globalsec.sec) )
+    setDefaultSection = setSection
+    getDefaultSection = getSection
+    setDefaultGlobalSection = setGlobalSection
+    getDefaultGlobalSection = getGlobalSection
 
-    def getDefaultSF(self):
+    def createSectionSF(self, Section localsec, Section globalsec):
+        CHKERR( DMCreateSectionSF(self.dm, localsec.sec, globalsec.sec) )
+
+    def getSectionSF(self):
         cdef SF sf = SF()
-        CHKERR( DMGetDefaultSF(self.dm, &sf.sf) )
+        CHKERR( DMGetSectionSF(self.dm, &sf.sf) )
         PetscINCREF(sf.obj)
         return sf
+
+    def setSectionSF(self, SF sf):
+        CHKERR( DMSetSectionSF(self.dm, sf.sf) )
+
+    createDefaultSF = createSectionSF
+    getDefaultSF = getSectionSF
+    setDefaultSF = setSectionSF
 
     def getPointSF(self):
         cdef SF sf = SF()

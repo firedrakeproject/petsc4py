@@ -6,6 +6,7 @@ cdef extern from * nogil:
     #PetscSNESType SNESPYTHON
     PetscSNESType SNESNRICHARDSON
     PetscSNESType SNESKSPONLY
+    PetscSNESType SNESKSPTRANSPOSEONLY
     PetscSNESType SNESVINEWTONRSLS
     PetscSNESType SNESVINEWTONSSLS
     PetscSNESType SNESNGMRES
@@ -255,6 +256,30 @@ cdef int SNES_InitialGuess(
     return 0
 
 # -----------------------------------------------------------------------------
+
+cdef int SNES_PreCheck(
+    PetscSNESLineSearch linesearch,
+    PetscVec  x,
+    PetscVec  y,
+    PetscBool *changed,
+    void* ctx
+    ) except PETSC_ERR_PYTHON with gil:
+    cdef PetscSNES snes = NULL;
+    CHKERR(SNESLineSearchGetSNES(linesearch, &snes));
+    cdef object b = False
+    cdef SNES Snes = ref_SNES(snes)
+    cdef Vec  Xvec = ref_Vec(x)
+    cdef Vec  Yvec = ref_Vec(y)
+    cdef object context = Snes.get_attr('__precheck__')
+    if context is None and ctx != NULL: context = <object>ctx
+    assert context is not None and type(context) is tuple # sanity check
+    (precheck, args, kargs) = context
+    b = precheck(Xvec, Yvec, *args, **kargs)
+    changed[0] = asBool(b)
+    return 0
+
+# -----------------------------------------------------------------------------
+
 
 cdef int SNES_Function(
     PetscSNES snes,

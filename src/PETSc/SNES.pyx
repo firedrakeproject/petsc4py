@@ -1,25 +1,26 @@
 # --------------------------------------------------------------------
 
 class SNESType(object):
-    NEWTONLS     = S_(SNESNEWTONLS)
-    NEWTONTR     = S_(SNESNEWTONTR)
-    PYTHON       = S_(SNESPYTHON)
-    NRICHARDSON  = S_(SNESNRICHARDSON)
-    KSPONLY      = S_(SNESKSPONLY)
-    VINEWTONRSLS = S_(SNESVINEWTONRSLS)
-    VINEWTONSSLS = S_(SNESVINEWTONSSLS)
-    NGMRES       = S_(SNESNGMRES)
-    QN           = S_(SNESQN)
-    SHELL        = S_(SNESSHELL)
-    NGS          = S_(SNESNGS)
-    NCG          = S_(SNESNCG)
-    FAS          = S_(SNESFAS)
-    MS           = S_(SNESMS)
-    NASM         = S_(SNESNASM)
-    ANDERSON     = S_(SNESANDERSON)
-    ASPIN        = S_(SNESASPIN)
-    COMPOSITE    = S_(SNESCOMPOSITE)
-    PATCH        = S_(SNESPATCH)
+    NEWTONLS         = S_(SNESNEWTONLS)
+    NEWTONTR         = S_(SNESNEWTONTR)
+    PYTHON           = S_(SNESPYTHON)
+    NRICHARDSON      = S_(SNESNRICHARDSON)
+    KSPONLY          = S_(SNESKSPONLY)
+    KSPTRANSPOSEONLY = S_(SNESKSPTRANSPOSEONLY)
+    VINEWTONRSLS     = S_(SNESVINEWTONRSLS)
+    VINEWTONSSLS     = S_(SNESVINEWTONSSLS)
+    NGMRES           = S_(SNESNGMRES)
+    QN               = S_(SNESQN)
+    SHELL            = S_(SNESSHELL)
+    NGS              = S_(SNESNGS)
+    NCG              = S_(SNESNCG)
+    FAS              = S_(SNESFAS)
+    MS               = S_(SNESMS)
+    NASM             = S_(SNESNASM)
+    ANDERSON         = S_(SNESANDERSON)
+    ASPIN            = S_(SNESASPIN)
+    COMPOSITE        = S_(SNESCOMPOSITE)
+    PATCH            = S_(SNESPATCH)
 
 class SNESNormSchedule(object):
     # native
@@ -245,6 +246,19 @@ cdef class SNES(Object):
         CHKERR( SNESSetNPC(self.snes, snes.snes) )
 
     # --- user Function/Jacobian routines ---
+
+    def setLineSearchPreCheck(self, precheck, args=None, kargs=None):
+        cdef PetscSNESLineSearch snesls = NULL
+        SNESGetLineSearch(self.snes, &snesls)
+        if precheck is not None:
+            if args  is None: args  = ()
+            if kargs is None: kargs = {}
+            context = (precheck, args, kargs)
+            self.set_attr('__precheck__', context)
+            CHKERR( SNESLineSearchSetPreCheck(snesls, SNES_PreCheck, <void*> context) )
+        else:
+            self.set_attr('__precheck__', None)
+            CHKERR( SNESLineSearchSetPreCheck(snesls, NULL, NULL) )
 
     def setInitialGuess(self, initialguess, args=None, kargs=None):
         if initialguess is not None:
