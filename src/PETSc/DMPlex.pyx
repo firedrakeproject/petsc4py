@@ -127,7 +127,7 @@ cdef class DMPlex(DM):
         CHKERR( DMPlexCreateCohesiveSubmesh(self.dm, flag, NULL, cvalue, &subdm.dm) )
         return subdm
 
-    def createSubDMPlex(self, filterName, filterValue, height):
+    def createSubmesh_Closure(self, filterName, filterValue, height):
         cdef const_char *cfilterName = NULL
         _ = str2bytes(filterName, &cfilterName)
         cdef PetscDMLabel cfilter = NULL
@@ -135,7 +135,7 @@ cdef class DMPlex(DM):
         cdef cfilterValue = asInt(filterValue)
         cdef cheight = asInt(height)
         cdef DM subplex = DMPlex()
-        CHKERR( DMPlexCreateSubDMPlex(self.dm, &subplex.dm, cfilter, cfilterValue, cheight) )
+        CHKERR( DMPlexCreateSubmesh_Closure(self.dm, cfilter, cfilterValue, cheight,  &subplex.dm) )
         return subplex
 
     def createSubpointIS(self):
