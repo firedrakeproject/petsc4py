@@ -312,7 +312,7 @@ cdef class PC(Object):
         CHKERR( PetscFree(isets_local) )
 
     def setASMTotalSubdomains(self, nsd, is_=None, is_local=None):
-        cdef PetscInt N = asInt(nsd)
+        cdef PetscInt n = asInt(nsd)
         cdef PetscInt i = 0
         cdef PetscIS *isets = NULL
         cdef PetscIS *isets_local = NULL
@@ -326,7 +326,7 @@ cdef class PC(Object):
             CHKERR( PetscMalloc(<size_t>n*sizeof(PetscIS), &isets_local) )
             for i in range(n):
                 isets_local[i] = (<IS?>is_local[i]).iset
-        CHKERR( PCASMSetTotalSubdomains(self.pc, N, isets, isets_local) )
+        CHKERR( PCASMSetTotalSubdomains(self.pc, n, isets, isets_local) )
         CHKERR( PetscFree(isets) )
         CHKERR( PetscFree(isets_local) )
 
