@@ -2,6 +2,17 @@
 
 cdef extern from * nogil:
 
+    ctypedef enum PetscDMPlexSubmeshType "DMPlexSubmeshType":
+      DMPLEX_SUBMESH_CLOSURE
+      DMPLEX_SUBMESH_HYPERSURFACE
+      DMPLEX_SUBMESH_USER
+
+    ctypedef int (*PetscDMPlexCreateSubmeshFunction)(PetscDM,
+                                                     PetscDMLabel,
+                                                     PetscInt,
+                                                     PetscInt,
+                                                     PetscDMLabel) except PETSC_ERR_PYTHON
+
     int DMPlexCreate(MPI_Comm,PetscDM*)
     int DMPlexCreateCohesiveSubmesh(PetscDM,PetscBool,const_char[],PetscInt,PetscDM*)
     int DMPlexCreateFromCellList(MPI_Comm,PetscInt,PetscInt,PetscInt,PetscInt,PetscBool,int[],PetscInt,double[],PetscDM*)
@@ -108,14 +119,12 @@ cdef extern from * nogil:
     int DMPlexGetOrdering(PetscDM,PetscMatOrderingType,PetscDMLabel,PetscIS*)
     int DMPlexPermute(PetscDM,PetscIS,PetscDM*)
 
-    #int DMPlexCreateSubmesh(PetscDM,PetscDMLabel,PetscInt,PetscDM*)
     #int DMPlexCreateHybridMesh(PetscDM,PetscDMLabel,PetscDMLabel*,PetscDM*)
     int DMPlexGetSubpointMap(PetscDM,PetscDMLabel*)
     int DMPlexSetSubpointMap(PetscDM,PetscDMLabel)
     int DMPlexCreateSubpointIS(PetscDM,PetscIS*)
 
-    int DMPlexCreateSubmesh_Closure(PetscDM,PetscDMLabel,PetscInt,PetscInt,PetscDM*)
-    #int DMPlexMarkSubpointMap_Closure(PetscDM,PetscDMLabel,PetscInt,PetscInt,PetscDMLabel)
+    int DMPlexCreateSubmesh(PetscDM,PetscDMPlexSubmeshType,PetscDMLabel,PetscInt,PetscInt,PetscBool,PetscBool,PetscBool,PetscDMPlexCreateSubmeshFunction,const char[],PetscBool,PetscDM*)
 
     int DMPlexCreateCoarsePointIS(PetscDM,PetscIS*)
     int DMPlexMarkBoundaryFaces(PetscDM,PetscInt,PetscDMLabel)

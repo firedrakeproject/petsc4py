@@ -127,16 +127,23 @@ cdef class DMPlex(DM):
         CHKERR( DMPlexCreateCohesiveSubmesh(self.dm, flag, NULL, cvalue, &subdm.dm) )
         return subdm
 
-    def createSubmesh_Closure(self, filterName, filterValue, height):
+    def createSubmesh(self, submeshType, filterName, filterValue, height, isCohesive, markedFaces, hasLagrange, isLocal)
+        cdef PetscDMPlexSubmeshType csubmeshType = {'DMPLEX_SUBMESH_CLOSURE': DMPLEX_SUBMESH_CLOSURE,
+                                                    'DMPLEX_SUBMESH_HYPERSURFACE': DMPLEX_SUBMESH_HYPERSURFACE,
+                                                    'DMPLEX_SUBMESH_USER': DMPLEX_SUBMESH_USER}[submeshType]
         cdef const_char *cfilterName = NULL
         _ = str2bytes(filterName, &cfilterName)
         cdef PetscDMLabel cfilter = NULL
         CHKERR( DMGetLabel(self.dm, cfilterName, &cfilter) )
-        cdef cfilterValue = asInt(filterValue)
-        cdef cheight = asInt(height)
-        cdef DM subplex = DMPlex()
-        CHKERR( DMPlexCreateSubmesh_Closure(self.dm, cfilter, cfilterValue, cheight,  &subplex.dm) )
-        return subplex
+        cdef PetscInt cfilterValue = asInt(filterValue)
+        cdef PetscInt cheight = asInt(height)
+        cdef PetscBool cisCohesive = isCohesive
+        cdef PetscBool cmarkedFaces = markedFaces
+        cdef PetscBool chasLagrange = hasLagrange
+        cdef PetscBool cisLocal = isLocal
+        cdef DM subdm = DMPlex()
+        CHKERR( DMPlexCreateSubmesh(self.dm, csubmeshType, cfilter, cfilterValue, cheight, cisCohesive, cmarkedFaces, chasLagrange, NULL, NULL, cisLocal, &subdm.dm) )
+        return subdm
 
     def createSubpointIS(self):
         cdef IS iset = IS()
