@@ -127,7 +127,7 @@ cdef class DMPlex(DM):
         CHKERR( DMPlexCreateCohesiveSubmesh(self.dm, flag, NULL, cvalue, &subdm.dm) )
         return subdm
 
-    def createSubmesh(self, submeshType, filterName, filterValue, height, isCohesive, markedFaces, hasLagrange, isLocal)
+    def createSubmesh(self, submeshType, filterName, filterValue, height, isCohesive, markedFaces, hasLagrange, isLocal):
         cdef PetscDMPlexSubmeshType csubmeshType = {'DMPLEX_SUBMESH_CLOSURE': DMPLEX_SUBMESH_CLOSURE,
                                                     'DMPLEX_SUBMESH_HYPERSURFACE': DMPLEX_SUBMESH_HYPERSURFACE,
                                                     'DMPLEX_SUBMESH_USER': DMPLEX_SUBMESH_USER}[submeshType]
