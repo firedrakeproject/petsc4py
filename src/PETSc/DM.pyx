@@ -14,6 +14,8 @@ class DMType(object):
     P4EST     = S_(DMP4EST)
     P8EST     = S_(DMP8EST)
     SWARM     = S_(DMSWARM)
+    PRODUCT   = S_(DMPRODUCT)
+    STAG      = S_(DMSTAG)
 
 class DMBoundaryType(object):
     NONE     = DM_BOUNDARY_NONE
@@ -106,14 +108,85 @@ cdef class DM(Object):
 
     #
 
-    def copyDisc(self, DM dm):
-        CHKERR( DMCopyDisc(self.dm, dm.dm) )
+    def setBasicAdjacency(self, useCone, useClosure):
+        cdef PetscBool uC  = useCone
+        cdef PetscBool uCl = useClosure
+        CHKERR( DMSetBasicAdjacency(self.dm, uC, uCl) )
+
+    def getBasicAdjacency(self):
+        cdef PetscBool uC  = PETSC_FALSE
+        cdef PetscBool uCl = PETSC_FALSE
+        CHKERR( DMGetBasicAdjacency(self.dm, &uC, &uCl) )
+        return toBool(uC), toBool(uCl)
+
+    def setFieldAdjacency(self, field, useCone, useClosure):
+        cdef PetscInt  f   = asInt(field)
+        cdef PetscBool uC  = useCone
+        cdef PetscBool uCl = useClosure
+        CHKERR( DMSetAdjacency(self.dm, f, uC, uCl) )
+
+    def getFieldAdjacency(self, field):
+        cdef PetscInt  f   = asInt(field)
+        cdef PetscBool uC  = PETSC_FALSE
+        cdef PetscBool uCl = PETSC_FALSE
+        CHKERR( DMGetAdjacency(self.dm, f, &uC, &uCl) )
+        return toBool(uC), toBool(uCl)
+
+    #
+
+    def setNumFields(self, numFields):
+        cdef PetscInt cnum = asInt(numFields)
+        CHKERR( DMSetNumFields(self.dm, cnum) )
+
+    def getNumFields(self):
+        cdef PetscInt cnum = 0
+        CHKERR( DMGetNumFields(self.dm, &cnum) )
+        return toInt(cnum)
+
+    def setField(self, index, Object field, label=None):
+        cdef PetscInt     cidx = asInt(index)
+        cdef PetscObject  cobj = field.obj[0]
+        cdef PetscDMLabel clbl = NULL
+        assert label is None
+        CHKERR( DMSetField(self.dm, cidx, clbl, cobj) )
+
+    def getField(self, index):
+        cdef PetscInt     cidx = asInt(index)
+        cdef PetscObject  cobj = NULL
+        cdef PetscDMLabel clbl = NULL
+        CHKERR( DMGetField(self.dm, cidx, &clbl, &cobj) )
+        assert clbl == NULL
+        cdef Object field = subtype_Object(cobj)()
+        field.obj[0] = cobj
+        PetscINCREF(field.obj)
+        return (field, None)
+
+    def addField(self, Object field, label=None):
+        cdef PetscObject  cobj = field.obj[0]
+        cdef PetscDMLabel clbl = NULL
+        assert label is None
+        CHKERR( DMAddField(self.dm, clbl, cobj) )
+
+    def copyFields(self, DM dm):
+        CHKERR( DMCopyFields(self.dm, dm.dm) )
+
+    def createDS(self):
+        CHKERR( DMCreateDS(self.dm) )
+
+    def clearDS(self):
+        CHKERR( DMClearDS(self.dm) )
 
     def getDS(self):
         cdef DS ds = DS()
         CHKERR( DMGetDS(self.dm, &ds.ds) )
         PetscINCREF(ds.obj)
         return ds
+
+    def copyDS(self, DM dm):
+        CHKERR( DMCopyDS(self.dm, dm.dm) )
+
+    def copyDisc(self, DM dm):
+        CHKERR( DMCopyDisc(self.dm, dm.dm) )
 
     #
 
@@ -210,6 +283,24 @@ cdef class DM(Object):
         PetscINCREF(c.obj)
         return c
 
+    def getBoundingBox(self):
+        cdef PetscInt i,dim=0
+        CHKERR( DMGetCoordinateDim(self.dm, &dim) )
+        cdef PetscReal gmin[3], gmax[3]
+        CHKERR( DMGetBoundingBox(self.dm, gmin, gmax) )
+        return tuple([(toReal(gmin[i]), toReal(gmax[i]))
+                      for i from 0 <= i < dim])
+
+    def getLocalBoundingBox(self):
+        cdef PetscInt i,dim=0
+        CHKERR( DMGetCoordinateDim(self.dm, &dim) )
+        cdef PetscReal lmin[3], lmax[3]
+        CHKERR( DMGetLocalBoundingBox(self.dm, lmin, lmax) )
+        return tuple([(toReal(lmin[i]), toReal(lmax[i]))
+                      for i from 0 <= i < dim])
+
+    def localizeCoordinates(self):
+        CHKERR( DMLocalizeCoordinates(self.dm) )
     #
 
     def setMatType(self, mat_type):
@@ -235,9 +326,9 @@ cdef class DM(Object):
         CHKERR( DMCreateInjection(self.dm, dm.dm, &inject.mat) )
         return inject
 
-    def createAggregates(self, DM dm):
+    def createRestriction(self, DM dm):
         cdef Mat mat = Mat()
-        CHKERR( DMCreateAggregates(self.dm, dm.dm, &mat.mat) )
+        CHKERR( DMCreateRestriction(self.dm, dm.dm, &mat.mat) )
         return mat
 
     def convert(self, dm_type):
@@ -338,34 +429,54 @@ cdef class DM(Object):
         CHKERR( DMAdaptMetric(self.dm, metric.vec, cbdlbl, crglbl, &newdm.dm) )
         return newdm
 
+    def getLabel(self, name):
+        cdef const_char *cname = NULL
+        cdef DMLabel dmlabel = DMLabel()
+        name = str2bytes(name, &cname)
+        CHKERR( DMGetLabel(self.dm, cname, &dmlabel.dmlabel) )
+        PetscINCREF(dmlabel.obj)
+        return dmlabel
+
     #
 
-    def setDefaultSection(self, Section sec):
-        CHKERR( DMSetDefaultSection(self.dm, sec.sec) )
+    def setSection(self, Section sec):
+        CHKERR( DMSetSection(self.dm, sec.sec) )
 
-    def getDefaultSection(self):
+    def getSection(self):
         cdef Section sec = Section()
-        CHKERR( DMGetDefaultSection(self.dm, &sec.sec) )
+        CHKERR( DMGetSection(self.dm, &sec.sec) )
         PetscINCREF(sec.obj)
         return sec
 
-    def setDefaultGlobalSection(self, Section sec):
-        CHKERR( DMSetDefaultGlobalSection(self.dm, sec.sec) )
+    def setGlobalSection(self, Section sec):
+        CHKERR( DMSetGlobalSection(self.dm, sec.sec) )
 
-    def getDefaultGlobalSection(self):
+    def getGlobalSection(self):
         cdef Section sec = Section()
-        CHKERR( DMGetDefaultGlobalSection(self.dm, &sec.sec) )
+        CHKERR( DMGetGlobalSection(self.dm, &sec.sec) )
         PetscINCREF(sec.obj)
         return sec
 
-    def createDefaultSF(self, Section localsec, Section globalsec):
-        CHKERR( DMCreateDefaultSF(self.dm, localsec.sec, globalsec.sec) )
+    setDefaultSection = setSection
+    getDefaultSection = getSection
+    setDefaultGlobalSection = setGlobalSection
+    getDefaultGlobalSection = getGlobalSection
 
-    def getDefaultSF(self):
+    def createSectionSF(self, Section localsec, Section globalsec):
+        CHKERR( DMCreateSectionSF(self.dm, localsec.sec, globalsec.sec) )
+
+    def getSectionSF(self):
         cdef SF sf = SF()
-        CHKERR( DMGetDefaultSF(self.dm, &sf.sf) )
+        CHKERR( DMGetSectionSF(self.dm, &sf.sf) )
         PetscINCREF(sf.obj)
         return sf
+
+    def setSectionSF(self, SF sf):
+        CHKERR( DMSetSectionSF(self.dm, sf.sf) )
+
+    createDefaultSF = createSectionSF
+    getDefaultSF = getSectionSF
+    setDefaultSF = setSectionSF
 
     def getPointSF(self):
         cdef SF sf = SF()
@@ -404,7 +515,8 @@ cdef class DM(Object):
         cdef PetscDMLabel clbl = NULL
         name = str2bytes(name, &cname)
         CHKERR( DMRemoveLabel(self.dm, cname, &clbl) )
-        # CHKERR( DMLabelDestroy(&clbl) )
+        # TODO: Once DMLabel is wrapped, this should return the label, like the C function.
+        CHKERR( DMLabelDestroy(&clbl) )
 
     def getLabelValue(self, name, point):
         cdef PetscInt cpoint = asInt(point), value = 0
@@ -540,6 +652,32 @@ cdef class DM(Object):
             CHKERR( DMSNESSetJacobian(self.dm, SNES_Jacobian, <void*>context) )
         else:
             CHKERR( DMSNESSetJacobian(self.dm, NULL, NULL) )
+
+    def addCoarsenHook(self, coarsenhook, restricthook, args=None, kargs=None):
+        if args  is None: args  = ()
+        if kargs is None: kargs = {}
+
+        if coarsenhook is not None:
+            coarsencontext = (coarsenhook, args, kargs)
+
+            coarsenhooks = self.get_attr('__coarsenhooks__')
+            if coarsenhooks is None:
+                coarsenhooks = [coarsencontext]
+                CHKERR( DMCoarsenHookAdd(self.dm, DM_PyCoarsenHook, NULL, <void*>NULL) )
+            else:
+                coarsenhooks.append(coarsencontext)
+            self.set_attr('__coarsenhooks__', coarsenhooks)
+
+        if restricthook is not None:
+            restrictcontext = (restricthook, args, kargs)
+
+            restricthooks = self.get_attr('__restricthooks__')
+            if restricthooks is None:
+                restricthooks = [restrictcontext]
+                CHKERR( DMCoarsenHookAdd(self.dm, NULL, DM_PyRestrictHook, <void*>NULL) )
+            else:
+                restricthooks.append(restrictcontext)
+            self.set_attr('__restricthooks__', restricthooks)
 
     # --- application context ---
 

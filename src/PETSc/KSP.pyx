@@ -9,9 +9,9 @@ class KSPType(object):
     PIPECGRR   = S_(KSPPIPECGRR)
     PIPELCG    = S_(KSPPIPELCG)
     CGNE       = S_(KSPCGNE)
-    CGNASH     = S_(KSPCGNASH)
-    CGSTCG     = S_(KSPCGSTCG)
-    CGGLTR     = S_(KSPCGGLTR)
+    NASH       = S_(KSPNASH)
+    STCG       = S_(KSPSTCG)
+    GLTR       = S_(KSPGLTR)
     FCG        = S_(KSPFCG)
     PIPEFCG    = S_(KSPPIPEFCG)
     GMRES      = S_(KSPGMRES)
@@ -44,6 +44,7 @@ class KSPType(object):
     TSIRM      = S_(KSPTSIRM)
     CGLS       = S_(KSPCGLS)
     FETIDP     = S_(KSPFETIDP)
+    HPDDM      = S_(KSPHPDDM)
 
 class KSPNormType(object):
     # native
@@ -384,8 +385,12 @@ cdef class KSP(Object):
     def setUpOnBlocks(self):
         CHKERR( KSPSetUpOnBlocks(self.ksp) )
 
-    def solve(self, Vec b, Vec x):
-        CHKERR( KSPSolve(self.ksp, b.vec, x.vec) )
+    def solve(self, Vec b or None, Vec x or None):
+        cdef PetscVec b_vec = NULL
+        cdef PetscVec x_vec = NULL
+        if b is not None: b_vec = b.vec
+        if x is not None: x_vec = x.vec
+        CHKERR( KSPSolve(self.ksp, b_vec, x_vec) )
 
     def solveTranspose(self, Vec b, Vec x):
         CHKERR( KSPSolveTranspose(self.ksp, b.vec, x.vec) )

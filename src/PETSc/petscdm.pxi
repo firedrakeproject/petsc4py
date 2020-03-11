@@ -7,7 +7,6 @@ cdef extern from * nogil:
     PetscDMType DMCOMPOSITE
     PetscDMType DMSLICED
     PetscDMType DMSHELL
-    PetscDMType DMMESH
     PetscDMType DMPLEX
     PetscDMType DMREDUNDANT
     PetscDMType DMPATCH
@@ -17,6 +16,8 @@ cdef extern from * nogil:
     PetscDMType DMP4EST
     PetscDMType DMP8EST
     PetscDMType DMSWARM
+    PetscDMType DMPRODUCT
+    PetscDMType DMSTAG
 
     ctypedef enum PetscDMBoundaryType"DMBoundaryType":
         DM_BOUNDARY_NONE
@@ -27,6 +28,16 @@ cdef extern from * nogil:
 
     struct _n_DMLabel
     ctypedef _n_DMLabel* PetscDMLabel "DMLabel"
+
+    ctypedef int (*PetscDMCoarsenHook)(PetscDM,
+                                       PetscDM,
+                                       void*) except PETSC_ERR_PYTHON
+    ctypedef int (*PetscDMRestrictHook)(PetscDM,
+                                        PetscMat,
+                                        PetscVec,
+                                        PetscMat,
+                                        PetscDM,
+                                        void*) except PETSC_ERR_PYTHON
 
     int DMCreate(MPI_Comm,PetscDM*)
     int DMClone(PetscDM,PetscDM*)
@@ -40,7 +51,21 @@ cdef extern from * nogil:
     int DMSetFromOptions(PetscDM)
     int DMSetUp(PetscDM)
 
+    int DMGetAdjacency(PetscDM,PetscInt,PetscBool*,PetscBool*)
+    int DMSetAdjacency(PetscDM,PetscInt,PetscBool,PetscBool)
+    int DMGetBasicAdjacency(PetscDM,PetscBool*,PetscBool*)
+    int DMSetBasicAdjacency(PetscDM,PetscBool,PetscBool)
+
+    int DMSetNumFields(PetscDM,PetscInt)
+    int DMGetNumFields(PetscDM,PetscInt*)
+    int DMSetField(PetscDM,PetscInt,PetscDMLabel,PetscObject)
+    int DMAddField(PetscDM,PetscDMLabel,PetscObject)
+    int DMGetField(PetscDM,PetscInt,PetscDMLabel*,PetscObject*)
+    int DMCopyFields(PetscDM,PetscDM)
+    int DMCreateDS(PetscDM)
+    int DMClearDS(PetscDM)
     int DMGetDS(PetscDM,PetscDS*)
+    int DMCopyDS(PetscDM,PetscDM)
     int DMCopyDisc(PetscDM,PetscDM)
 
     int DMGetBlockSize(PetscDM,PetscInt*)
@@ -62,10 +87,11 @@ cdef extern from * nogil:
     int DMGetCoordinatesLocal(PetscDM,PetscVec*)
     int DMGetCoordinateDim(PetscDM,PetscInt*)
     int DMSetCoordinateDim(PetscDM,PetscInt)
+    int DMLocalizeCoordinates(PetscDM)
 
     int DMCreateInterpolation(PetscDM,PetscDM,PetscMat*,PetscVec*)
     int DMCreateInjection(PetscDM,PetscDM,PetscMat*)
-    int DMCreateAggregates(PetscDM,PetscDM,PetscMat*)
+    int DMCreateRestriction(PetscDM,PetscDM,PetscMat*)
 
     int DMConvert(PetscDM,PetscDMType,PetscDM*)
     int DMRefine(PetscDM,MPI_Comm,PetscDM*)
@@ -88,13 +114,13 @@ cdef extern from * nogil:
 
     int DMGetLocalToGlobalMapping(PetscDM,PetscLGMap*)
 
-    int DMSetDefaultSection(PetscDM,PetscSection)
-    int DMGetDefaultSection(PetscDM,PetscSection*)
-    int DMSetDefaultGlobalSection(PetscDM,PetscSection)
-    int DMGetDefaultGlobalSection(PetscDM,PetscSection*)
-    int DMCreateDefaultSF(PetscDM,PetscSection,PetscSection)
-    int DMGetDefaultSF(PetscDM,PetscSF*)
-    int DMSetDefaultSF(PetscDM,PetscSF)
+    int DMSetSection(PetscDM,PetscSection)
+    int DMGetSection(PetscDM,PetscSection*)
+    int DMSetGlobalSection(PetscDM,PetscSection)
+    int DMGetGlobalSection(PetscDM,PetscSection*)
+    int DMCreateSectionSF(PetscDM,PetscSection,PetscSection)
+    int DMGetSectionSF(PetscDM,PetscSF*)
+    int DMSetSectionSF(PetscDM,PetscSF)
     int DMGetPointSF(PetscDM,PetscSF*)
     int DMSetPointSF(PetscDM,PetscSF)
 
@@ -116,6 +142,7 @@ cdef extern from * nogil:
     int DMGetLabel(PetscDM,const_char*,PetscDMLabel*)
     int DMAddLabel(PetscDM,PetscDMLabel)
     int DMRemoveLabel(PetscDM,const_char[],PetscDMLabel*)
+    int DMLabelDestroy(PetscDMLabel *)
     #int DMCopyLabels(PetscDM,PetscDM)
 
     int DMShellSetGlobalVector(PetscDM,PetscVec)
@@ -127,6 +154,8 @@ cdef extern from * nogil:
 
     int DMSNESSetFunction(PetscDM,PetscSNESFunctionFunction,void*)
     int DMSNESSetJacobian(PetscDM,PetscSNESJacobianFunction,void*)
+
+    int DMCoarsenHookAdd(PetscDM,PetscDMCoarsenHook,PetscDMRestrictHook,void*)
 
 # --------------------------------------------------------------------
 
@@ -185,4 +214,49 @@ cdef inline object toBoundary(PetscInt dim,
     elif dim == 2: return (x, y)
     elif dim == 3: return (x, y, z)
 
+# -----------------------------------------------------------------------------
+
+cdef inline DM ref_DM(PetscDM dm):
+    cdef DM ob = <DM> DM()
+    ob.dm = dm
+    PetscINCREF(ob.obj)
+    return ob
+
 # --------------------------------------------------------------------
+
+cdef int DM_PyCoarsenHook(
+    PetscDM fine,
+    PetscDM coarse,
+    void*   ctx,
+    ) except PETSC_ERR_PYTHON with gil:
+
+    cdef DM Fine = ref_DM(fine)
+    cdef DM Coarse = ref_DM(coarse)
+    cdef object hooks = Fine.get_attr('__coarsenhooks__')
+    assert hooks is not None and type(hooks) is list
+    for hook in hooks:
+        (hookop, args, kargs) = hook
+        hookop(Fine, Coarse, *args, **kargs)
+    return 0
+
+cdef int DM_PyRestrictHook(
+    PetscDM fine,
+    PetscMat mrestrict,
+    PetscVec rscale,
+    PetscMat inject,
+    PetscDM coarse,
+    void*   ctx,
+    ) except PETSC_ERR_PYTHON with gil:
+
+    cdef DM  Fine = ref_DM(fine)
+    cdef Mat Mrestrict = ref_Mat(mrestrict)
+    cdef Vec Rscale = ref_Vec(rscale)
+    cdef Mat Inject = ref_Mat(inject)
+    cdef DM  Coarse = ref_DM(coarse)
+    cdef object hooks = Fine.get_attr('__restricthooks__')
+    assert hooks is not None and type(hooks) is list
+    for hook in hooks:
+        (hookop, args, kargs) = hook
+        hookop(Fine, Mrestrict, Rscale, Inject, Coarse, *args, **kargs)
+    return 0
+# -----------------------------------------------------------------------------

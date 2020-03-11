@@ -8,6 +8,7 @@ class PCType(object):
     LU                 = S_(PCLU)
     SHELL              = S_(PCSHELL)
     BJACOBI            = S_(PCBJACOBI)
+    VPBJACOBI          = S_(PCVPBJACOBI)
     MG                 = S_(PCMG)
     EISENSTAT          = S_(PCEISENSTAT)
     ILU                = S_(PCILU)
@@ -44,8 +45,11 @@ class PCType(object):
     BDDC               = S_(PCBDDC)
     KACZMARZ           = S_(PCKACZMARZ)
     TELESCOPE          = S_(PCTELESCOPE)
-    LMVM               = S_(PCLMVM)
     PATCH              = S_(PCPATCH)
+    LMVM               = S_(PCLMVM)
+    HMG                = S_(PCHMG)
+    DEFLATION          = S_(PCDEFLATION)
+    HPDDM              = S_(PCHPDDM)
 
 class PCSide(object):
     # native
@@ -719,12 +723,26 @@ cdef class PC(Object):
         self.set_attr("__patch_compute_operator__", context)
         CHKERR( PCPatchSetComputeOperator(self.pc, PCPatch_ComputeOperator, <void*>context) )
 
+    def setPatchComputeOperatorInteriorFacets(self, operator, args=None, kargs=None):
+        if args is  None: args  = ()
+        if kargs is None: kargs = {}
+        context = (operator, args, kargs)
+        self.set_attr("__patch_compute_operator_interior_facets__", context)
+        CHKERR( PCPatchSetComputeOperatorInteriorFacets(self.pc, PCPatch_ComputeOperatorInteriorFacets, <void*>context) )
+
     def setPatchComputeFunction(self, function, args=None, kargs=None):
         if args is  None: args  = ()
         if kargs is None: kargs = {}
         context = (function, args, kargs)
         self.set_attr("__patch_compute_function__", context)
         CHKERR( PCPatchSetComputeFunction(self.pc, PCPatch_ComputeFunction, <void*>context) )
+
+    def setPatchComputeFunctionInteriorFacets(self, function, args=None, kargs=None):
+        if args is  None: args  = ()
+        if kargs is None: kargs = {}
+        context = (function, args, kargs)
+        self.set_attr("__patch_compute_function_interior_facets__", context)
+        CHKERR( PCPatchSetComputeFunction(self.pc, PCPatch_ComputeFunctionInteriorFacets, <void*>context) )
 
     def setPatchConstructType(self, typ, operator=None, args=None, kargs=None):
         if args is  None: args  = ()

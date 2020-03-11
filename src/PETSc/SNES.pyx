@@ -1,25 +1,26 @@
 # --------------------------------------------------------------------
 
 class SNESType(object):
-    NEWTONLS     = S_(SNESNEWTONLS)
-    NEWTONTR     = S_(SNESNEWTONTR)
-    PYTHON       = S_(SNESPYTHON)
-    NRICHARDSON  = S_(SNESNRICHARDSON)
-    KSPONLY      = S_(SNESKSPONLY)
-    VINEWTONRSLS = S_(SNESVINEWTONRSLS)
-    VINEWTONSSLS = S_(SNESVINEWTONSSLS)
-    NGMRES       = S_(SNESNGMRES)
-    QN           = S_(SNESQN)
-    SHELL        = S_(SNESSHELL)
-    NGS          = S_(SNESNGS)
-    NCG          = S_(SNESNCG)
-    FAS          = S_(SNESFAS)
-    MS           = S_(SNESMS)
-    NASM         = S_(SNESNASM)
-    ANDERSON     = S_(SNESANDERSON)
-    ASPIN        = S_(SNESASPIN)
-    COMPOSITE    = S_(SNESCOMPOSITE)
-    PATCH        = S_(SNESPATCH)
+    NEWTONLS         = S_(SNESNEWTONLS)
+    NEWTONTR         = S_(SNESNEWTONTR)
+    PYTHON           = S_(SNESPYTHON)
+    NRICHARDSON      = S_(SNESNRICHARDSON)
+    KSPONLY          = S_(SNESKSPONLY)
+    KSPTRANSPOSEONLY = S_(SNESKSPTRANSPOSEONLY)
+    VINEWTONRSLS     = S_(SNESVINEWTONRSLS)
+    VINEWTONSSLS     = S_(SNESVINEWTONSSLS)
+    NGMRES           = S_(SNESNGMRES)
+    QN               = S_(SNESQN)
+    SHELL            = S_(SNESSHELL)
+    NGS              = S_(SNESNGS)
+    NCG              = S_(SNESNCG)
+    FAS              = S_(SNESFAS)
+    MS               = S_(SNESMS)
+    NASM             = S_(SNESNASM)
+    ANDERSON         = S_(SNESANDERSON)
+    ASPIN            = S_(SNESASPIN)
+    COMPOSITE        = S_(SNESCOMPOSITE)
+    PATCH            = S_(SNESPATCH)
 
 class SNESNormSchedule(object):
     # native
@@ -46,16 +47,18 @@ class SNESConvergedReason(object):
     CONVERGED_FNORM_RELATIVE = SNES_CONVERGED_FNORM_RELATIVE
     CONVERGED_SNORM_RELATIVE = SNES_CONVERGED_SNORM_RELATIVE
     CONVERGED_ITS            = SNES_CONVERGED_ITS
-    CONVERGED_TR_DELTA       = SNES_CONVERGED_TR_DELTA
     # diverged
     DIVERGED_FUNCTION_DOMAIN = SNES_DIVERGED_FUNCTION_DOMAIN
     DIVERGED_FUNCTION_COUNT  = SNES_DIVERGED_FUNCTION_COUNT
+    DIVERGED_LINEAR_SOLVE    = SNES_DIVERGED_LINEAR_SOLVE
     DIVERGED_FNORM_NAN       = SNES_DIVERGED_FNORM_NAN
     DIVERGED_MAX_IT          = SNES_DIVERGED_MAX_IT
     DIVERGED_LINE_SEARCH     = SNES_DIVERGED_LINE_SEARCH
     DIVERGED_INNER           = SNES_DIVERGED_INNER
     DIVERGED_LOCAL_MIN       = SNES_DIVERGED_LOCAL_MIN
     DIVERGED_DTOL            = SNES_DIVERGED_DTOL
+    DIVERGED_JACOBIAN_DOMAIN = SNES_DIVERGED_JACOBIAN_DOMAIN
+    DIVERGED_TR_DELTA        = SNES_DIVERGED_TR_DELTA
 
 # --------------------------------------------------------------------
 
@@ -243,6 +246,19 @@ cdef class SNES(Object):
         CHKERR( SNESSetNPC(self.snes, snes.snes) )
 
     # --- user Function/Jacobian routines ---
+
+    def setLineSearchPreCheck(self, precheck, args=None, kargs=None):
+        cdef PetscSNESLineSearch snesls = NULL
+        SNESGetLineSearch(self.snes, &snesls)
+        if precheck is not None:
+            if args  is None: args  = ()
+            if kargs is None: kargs = {}
+            context = (precheck, args, kargs)
+            self.set_attr('__precheck__', context)
+            CHKERR( SNESLineSearchSetPreCheck(snesls, SNES_PreCheck, <void*> context) )
+        else:
+            self.set_attr('__precheck__', None)
+            CHKERR( SNESLineSearchSetPreCheck(snesls, NULL, NULL) )
 
     def setInitialGuess(self, initialguess, args=None, kargs=None):
         if initialguess is not None:

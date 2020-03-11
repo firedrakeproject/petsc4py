@@ -45,7 +45,7 @@ cdef extern from * nogil:
     #int DMPlexPointGlobalRead(PetscDM,PetscInt,const_PetscScalar*,const_void*)
     int DMPlexGetPointLocalField(PetscDM,PetscInt,PetscInt,PetscInt*,PetscInt*)
     int DMPlexGetPointGlobalField(PetscDM,PetscInt,PetscInt,PetscInt*,PetscInt*)
-
+    int DMPlexCreateClosureIndex(PetscDM,PetscSection)
     #int PetscSectionCreateGlobalSectionLabel(PetscSection,PetscSF,PetscBool,PetscDMLabel,PetscInt,PetscSection*)
 
     int DMPlexGetCellNumbering(PetscDM,PetscIS*)
@@ -91,16 +91,13 @@ cdef extern from * nogil:
     #int DMPlexCheckSkeleton(PetscDM,PetscBool,PetscInt)
     #int DMPlexCheckFaces(PetscDM,PetscBool,PetscInt)
 
-    int DMPlexSetAdjacencyUseCone(PetscDM,PetscBool)
-    int DMPlexSetAdjacencyUseClosure(PetscDM,PetscBool)
     int DMPlexSetAdjacencyUseAnchors(PetscDM,PetscBool)
-    int DMPlexGetAdjacencyUseCone(PetscDM,PetscBool*)
-    int DMPlexGetAdjacencyUseClosure(PetscDM,PetscBool*)
     int DMPlexGetAdjacencyUseAnchors(PetscDM,PetscBool*)
     int DMPlexGetAdjacency(PetscDM,PetscInt,PetscInt*,PetscInt*[])
     #int DMPlexCreateNeighborCSR(PetscDM,PetscInt,PetscInt*,PetscInt**,PetscInt**)
     #int DMPlexCreatePartition(PetscDM,const_char[],PetscInt,PetscBool,PetscSection*,PetscIS*,PetscSection*,PetscIS*)
     #int DMPlexCreatePartitionClosure(PetscDM,PetscSection,PetscIS,PetscSection*,PetscIS*)
+    int DMPlexRebalanceSharedPoints(PetscDM,PetscInt,PetscBool,PetscBool,PetscBool*)
     int DMPlexDistribute(PetscDM,PetscInt,PetscSF*,PetscDM*)
     int DMPlexDistributeOverlap(PetscDM,PetscInt,PetscSF*,PetscDM*)
     int DMPlexSetPartitioner(PetscDM,PetscPartitioner)

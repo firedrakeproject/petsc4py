@@ -143,6 +143,10 @@ cdef inline type subtype_DM(PetscDM dm):
     if match == PETSC_TRUE: return DMComposite
     CHKERR( PetscObjectTypeCompare(obj, b"shell", &match) )
     if match == PETSC_TRUE: return DMShell
+    CHKERR( PetscObjectTypeCompare(obj, b"stag", &match) )
+    if match == PETSC_TRUE: return DMStag
+    CHKERR( PetscObjectTypeCompare(obj, b"swarm", &match) )
+    if match == PETSC_TRUE: return DMSwarm
     # ---
     return DM
 

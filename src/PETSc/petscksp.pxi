@@ -8,10 +8,10 @@ cdef extern from * nogil:
     PetscKSPType KSPPIPECG
     PetscKSPType KSPPIPECGRR
     PetscKSPType KSPPIPELCG
-    PetscKSPType   KSPCGNE
-    PetscKSPType   KSPCGNASH
-    PetscKSPType   KSPCGSTCG
-    PetscKSPType   KSPCGGLTR
+    PetscKSPType KSPCGNE
+    PetscKSPType KSPNASH
+    PetscKSPType KSPSTCG
+    PetscKSPType KSPGLTR
     PetscKSPType KSPFCG
     PetscKSPType KSPPIPEFCG
     PetscKSPType KSPGMRES
@@ -44,6 +44,7 @@ cdef extern from * nogil:
     PetscKSPType KSPTSIRM
     PetscKSPType KSPCGLS
     PetscKSPType KSPFETIDP
+    PetscKSPType KSPHPDDM
 
     ctypedef enum PetscKSPNormType "KSPNormType":
         KSP_NORM_DEFAULT

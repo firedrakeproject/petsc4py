@@ -2,25 +2,27 @@
 
 class TSType(object):
     # native
-    EULER    = S_(TSEULER)
-    BEULER   = S_(TSBEULER)
-    PSEUDO   = S_(TSPSEUDO)
-    CN       = S_(TSCN)
-    SUNDIALS = S_(TSSUNDIALS)
-    RK       = S_(TSRK)
-    PYTHON   = S_(TSPYTHON)
-    THETA    = S_(TSTHETA)
-    ALPHA    = S_(TSALPHA)
-    ALPHA2   = S_(TSALPHA2)
-    GLLE     = S_(TSGLLE)
-    GLEE     = S_(TSGLEE)
-    SSP      = S_(TSSSP)
-    ARKIMEX  = S_(TSARKIMEX)
-    ROSW     = S_(TSROSW)
-    EIMEX    = S_(TSEIMEX)
-    MIMEX    = S_(TSMIMEX)
-    BDF      = S_(TSBDF)
-    RADAU5   = S_(TSRADAU5)
+    EULER           = S_(TSEULER)
+    BEULER          = S_(TSBEULER)
+    BASICSYMPLECTIC = S_(TSBASICSYMPLECTIC)
+    PSEUDO          = S_(TSPSEUDO)
+    CN              = S_(TSCN)
+    SUNDIALS        = S_(TSSUNDIALS)
+    RK              = S_(TSRK)
+    PYTHON          = S_(TSPYTHON)
+    THETA           = S_(TSTHETA)
+    ALPHA           = S_(TSALPHA)
+    ALPHA2          = S_(TSALPHA2)
+    GLLE            = S_(TSGLLE)
+    GLEE            = S_(TSGLEE)
+    SSP             = S_(TSSSP)
+    ARKIMEX         = S_(TSARKIMEX)
+    ROSW            = S_(TSROSW)
+    EIMEX           = S_(TSEIMEX)
+    MIMEX           = S_(TSMIMEX)
+    BDF             = S_(TSBDF)
+    RADAU5          = S_(TSRADAU5)
+    MPRK            = S_(TSMPRK)
     # aliases
     FE = EULER
     BE = BEULER
@@ -707,41 +709,47 @@ cdef class TS(Object):
             vm = [ref_Vec(vecm[i]) for i from 0 <= i < n]
         return (vl, vm)
 
-    def setCostIntegrand(self, Vec cost or None, rfunction,
-                         n=0, drdyfunction=None, drdpfunction=None,
-                         forward=True, args=None, kargs=None):
-        cdef PetscInt ival = asInt(n)
-        cdef PetscVec vec = NULL
-        cdef int (*R   )(PetscTS,PetscReal,PetscVec,PetscVec,  void*) nogil except PETSC_ERR_PYTHON
-        cdef int (*DRDY)(PetscTS,PetscReal,PetscVec,PetscVec[],void*) nogil except PETSC_ERR_PYTHON
-        cdef int (*DRDP)(PetscTS,PetscReal,PetscVec,PetscVec[],void*) nogil except PETSC_ERR_PYTHON
-        R = NULL; DRDY = NULL; DRDP = NULL;
-        if cost is not None: vec = (<Vec>cost).vec
-        if rfunction    is not None: R    = TSAdjoint_CostIntegrand
-        if drdyfunction is not None: DRDY = TSAdjoint_CostIntegrand_DY
-        if drdpfunction is not None: DRDP = TSAdjoint_CostIntegrand_DP
-        cdef PetscBool fwd = forward
-        if args  is None: args  = ()
-        if kargs is None: kargs = {}
-        context = ((rfunction, drdyfunction, drdpfunction), args, kargs)
-        self.set_attr('__costintegrand__', context)
-        CHKERR( TSSetCostIntegrand(self.ts, ival, vec, R, DRDY, DRDP, fwd, <void*>context) )
-
-    def adjointSetRHSJacobian(self, adjointjacobian, Mat A=None, args=None, kargs=None):
+    def setRHSJacobianP(self, jacobianp, Mat A=None, args=None, kargs=None):
         cdef PetscMat Amat=NULL
         if A is not None: Amat = A.mat
-        if adjointjacobian is not None:
+        if jacobianp is not None:
             if args  is None: args  = ()
             if kargs is None: kargs = {}
-            context = (adjointjacobian, args, kargs)
-            self.set_attr('__adjointrhsjacobian__', context)
-            CHKERR( TSAdjointSetRHSJacobian(self.ts, Amat, TSAdjoint_RHSJacobian, <void*>context) )
+            context = (jacobianp, args, kargs)
+            self.set_attr('__rhsjacobianp__', context)
+            CHKERR( TSSetRHSJacobianP(self.ts, Amat, TS_RHSJacobianP, <void*>context) )
         else:
-            CHKERR( TSAdjointSetRHSJacobian(self.ts, Amat, NULL, NULL) )
+            CHKERR( TSSetRHSJacobianP(self.ts, Amat, NULL, NULL) )
 
-    def adjointComputeRHSJacobian(self, t, Vec x, Mat J):
+    def createQuadratureTS(self, forward=True):
+        cdef TS qts = TS()
+        cdef PetscBool fwd = forward
+        CHKERR( TSCreateQuadratureTS(self.ts, fwd, &qts.ts) )
+        PetscINCREF(qts.obj)
+        return qts
+
+    def getQuadratureTS(self):
+        cdef TS qts = TS()
+        cdef PetscBool fwd = PETSC_FALSE
+        CHKERR( TSGetQuadratureTS(self.ts, &fwd, &qts.ts) )
+        PetscINCREF(qts.obj)
+        return (toBool(fwd), qts)
+
+    def setRHSJacobianP(self, rhsjacobianp, Mat A=None, args=None, kargs=None):
+        cdef PetscMat Amat=NULL
+        if A is not None: Amat = A.mat
+        if rhsjacobianp is not None:
+            if args  is None: args  = ()
+            if kargs is None: kargs = {}
+            context = (rhsjacobianp, args, kargs)
+            self.set_attr('__rhsjacobianp__', context)
+            CHKERR( TSSetRHSJacobianP(self.ts, Amat, TS_RHSJacobianP, <void*>context) )
+        else:
+            CHKERR( TSSetRHSJacobianP(self.ts, Amat, NULL, NULL) )
+
+    def computeRHSJacobianP(self, t, Vec x, Mat J):
         cdef PetscReal rval = asReal(t)
-        CHKERR( TSAdjointComputeRHSJacobian(self.ts, rval, x.vec, J.mat) )
+        CHKERR( TSComputeRHSJacobianP(self.ts, rval, x.vec, J.mat) )
 
     def adjointSetSteps(self, adjoint_steps):
         cdef PetscInt ival = asInt(adjoint_steps)

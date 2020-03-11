@@ -213,9 +213,9 @@ SWIG_AsVal_dec(long double)(SWIG_Object obj, long double *val) {
           fragment=SWIG_From_frag(PetscReal),
           fragment=SWIG_From_frag(PetscComplex))
 {
-%#if   defined(PETSC_USE_SCALAR_COMPLEX)
+%#if   defined(PETSC_USE_COMPLEX)
 %define_as(SWIG_From(PetscScalar), SWIG_From(PetscComplex))
-%#elif defined(PETSC_USE_SCALAR_REAL)
+%#else
 %define_as(SWIG_From(PetscScalar), SWIG_From(PetscReal))
 %#endif
 }
@@ -223,9 +223,9 @@ SWIG_AsVal_dec(long double)(SWIG_Object obj, long double *val) {
           fragment=SWIG_AsVal_frag(PetscReal),
           fragment=SWIG_AsVal_frag(PetscComplex))
 {
-%#if   defined(PETSC_USE_SCALAR_COMPLEX)
+%#if   defined(PETSC_USE_COMPLEX)
 %define_as(SWIG_AsVal(PetscScalar), SWIG_AsVal(PetscComplex))
-%#elif defined(PETSC_USE_SCALAR_REAL)
+%#else
 %define_as(SWIG_AsVal(PetscScalar), SWIG_AsVal(PetscReal))
 %#endif
 }
@@ -459,6 +459,10 @@ SWIG_From_dec(Type)(Type v) {
 %define SWIG_TYPECHECK_PETSC_DS            542 %enddef
 %define SWIG_TYPECHECK_PETSC_PARTITIONER   543 %enddef
 
+%define SWIG_TYPECHECK_PETSC_FE            550 %enddef
+%define SWIG_TYPECHECK_PETSC_QUADRATURE    551 %enddef
+
+%define SWIG_TYPECHECK_PETSC_DMLABEL       560 %enddef
 
 %define %petsc4py_objt(Pkg, PyType, Type, CODE)
 
@@ -576,6 +580,9 @@ SWIG_From_dec(Type)(Type v) {
 %petsc4py_objt( Petsc , DM          , DM                     , PETSC_DM            )
 %petsc4py_objt( Petsc , DS          , PetscDS                , PETSC_DS            )
 %petsc4py_objt( Petsc , Partitioner , PetscPartitioner       , PETSC_PARTITIONER   )
+%petsc4py_objt( Petsc , FE          , PetscFE                , PETSC_FE            )
+%petsc4py_objt( Petsc , Quad        , PetscQuadrature        , PETSC_QUADRATURE    )
+%petsc4py_objt( Petsc , DMLabel     , PetscDMLabel           , PETSC_DMLABEL       )
 
 /* ---------------------------------------------------------------- */
 
