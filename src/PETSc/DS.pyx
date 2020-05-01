@@ -32,7 +32,7 @@ cdef class DS(Object):
         return self
 
     def setType(self, ds_type):
-        cdef const_char *cval = NULL
+        cdef PetscDSType cval = NULL
         ds_type = str2bytes(ds_type, &cval)
         CHKERR( PetscDSSetType(self.ds, cval) )
 
@@ -91,6 +91,12 @@ cdef class DS(Object):
         CHKERR( PetscDSGetNumFields(self.ds, &nf) )
         CHKERR( PetscDSGetComponents(self.ds, &cmps) )
         return array_i(nf, cmps)
+
+    def setDiscretisation(self, f, disc):
+        cdef PetscInt cf = asInt(f)
+        cdef FE fe = disc
+        CHKERR( PetscDSSetDiscretization(self.ds, cf, <PetscObject> fe.fe) )
+
 
 
 # --------------------------------------------------------------------

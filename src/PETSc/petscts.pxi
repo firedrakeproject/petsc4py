@@ -1,6 +1,6 @@
 cdef extern from * nogil:
 
-    ctypedef char* PetscTSType "const char*"
+    ctypedef const char* PetscTSType "TSType"
     PetscTSType TSEULER
     PetscTSType TSBEULER
     PetscTSType TSBASICSYMPLECTIC
@@ -200,8 +200,7 @@ cdef extern from * nogil:
     ctypedef int (*PetscTSAdjointR)(PetscTS,PetscReal,PetscVec,PetscVec,void*) except PETSC_ERR_PYTHON
     ctypedef int (*PetscTSAdjointDRDY)(PetscTS,PetscReal,PetscVec,PetscVec[],void*) except PETSC_ERR_PYTHON
     ctypedef int (*PetscTSAdjointDRDP)(PetscTS,PetscReal,PetscVec,PetscVec[],void*) except PETSC_ERR_PYTHON
-    ctypedef int (*PetscTSRHSJacobianPFunction)(PetscTS,PetscReal,PetscVec,PetscMat,void*) except PETSC_ERR_PYTHON
-
+    ctypedef int (*PetscTSRHSJacobianP)(PetscTS,PetscReal,PetscVec,PetscMat,void*) except PETSC_ERR_PYTHON
 
     int TSSetSaveTrajectory(PetscTS)
     int TSSetCostGradients(PetscTS,PetscInt,PetscVec*,PetscVec*)
@@ -210,8 +209,7 @@ cdef extern from * nogil:
     int TSGetQuadratureTS(PetscTS,PetscBool*,PetscTS*)
     int TSGetCostIntegral(PetscTS,PetscVec*)
 
-    int TSComputeCostIntegrand(PetscTS,PetscReal,PetscVec,PetscVec)
-    int TSSetRHSJacobianP(PetscTS,PetscMat,PetscTSRHSJacobianPFunction,void*)
+    int TSSetRHSJacobianP(PetscTS,PetscMat,PetscTSRHSJacobianP,void*)
     int TSComputeRHSJacobianP(PetscTS,PetscReal,PetscVec,PetscMat)
 
     int TSAdjointSolve(PetscTS)
@@ -252,7 +250,7 @@ cdef extern from * nogil:
     int TSAlphaSetParams(PetscTS,PetscReal,PetscReal,PetscReal)
     int TSAlphaGetParams(PetscTS,PetscReal*,PetscReal*,PetscReal*)
 
-    ctypedef char* PetscTSRKType "const char*"
+    ctypedef const char* PetscTSRKType "TSRKType"
     PetscTSRKType TSRK1FE
     PetscTSRKType TSRK2A
     PetscTSRKType TSRK3
@@ -261,11 +259,14 @@ cdef extern from * nogil:
     PetscTSRKType TSRK5F
     PetscTSRKType TSRK5DP
     PetscTSRKType TSRK5BS
+    PetscTSRKType TSRK6VR
+    PetscTSRKType TSRK7VR
+    PetscTSRKType TSRK8VR
 
     int TSRKGetType(PetscTS ts,PetscTSRKType*)
     int TSRKSetType(PetscTS ts,PetscTSRKType)
 
-    ctypedef char* PetscTSARKIMEXType "const char*"
+    ctypedef const char* PetscTSARKIMEXType "TSARKIMEXType"
     PetscTSARKIMEXType TSARKIMEX1BEE
     PetscTSARKIMEXType TSARKIMEXA2
     PetscTSARKIMEXType TSARKIMEXL2
@@ -477,8 +478,8 @@ cdef int TS_RHSJacobianP(
     cdef object context = Ts.get_attr('__rhsjacobianp__')
     if context is None and ctx != NULL: context = <object>ctx
     assert context is not None and type(context) is tuple # sanity check
-    (adjointjacobian, args, kargs) = context
-    adjointjacobian(Ts, toReal(t), Xvec, Jmat, *args, **kargs)
+    (jacobianp, args, kargs) = context
+    jacobianp(Ts, toReal(t), Xvec, Jmat, *args, **kargs)
     return 0
 
 # -----------------------------------------------------------------------------

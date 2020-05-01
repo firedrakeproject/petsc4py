@@ -6,10 +6,7 @@ cdef extern from *:
 
 # --------------------------------------------------------------------
 
-cdef extern from *:
-    ctypedef char const_char "const char"
-
-cdef inline object bytes2str(const_char p[]):
+cdef inline object bytes2str(const char p[]):
      if p == NULL:
          return None
      cdef bytes s = <char*>p
@@ -18,16 +15,16 @@ cdef inline object bytes2str(const_char p[]):
      else:
          return s.decode()
 
-cdef inline object str2bytes(object s, const_char *p[]):
+cdef inline object str2bytes(object s, const char *p[]):
     if s is None:
         p[0] = NULL
         return None
     if not isinstance(s, bytes):
         s = s.encode()
-    p[0] = <const_char*>(<char*>s)
+    p[0] = <const char*>(<char*>s)
     return s
 
-cdef inline object S_(const_char p[]):
+cdef inline object S_(const char p[]):
      if p == NULL: return None
      cdef object s = <char*>p
      return s if isinstance(s, str) else s.decode()
@@ -73,9 +70,6 @@ cdef extern from *:
     ctypedef long   PetscInt
     ctypedef double PetscReal
     ctypedef double PetscScalar
-    ctypedef PetscInt    const_PetscInt    "const PetscInt"
-    ctypedef PetscReal   const_PetscReal   "const PetscReal"
-    ctypedef PetscScalar const_PetscScalar "const PetscScalar"
 
 cdef extern from "scalar.h":
     object      PyPetscScalar_FromPetscScalar(PetscScalar)
@@ -129,6 +123,8 @@ include "petscrand.pxi"
 include "petscis.pxi"
 include "petscsf.pxi"
 include "petscvec.pxi"
+include "petscdt.pxi"
+include "petscfe.pxi"
 include "petscsct.pxi"
 include "petscsec.pxi"
 include "petscmat.pxi"
@@ -145,8 +141,9 @@ include "petscdmplex.pxi"
 include "petscdmstag.pxi"
 include "petscdmcomposite.pxi"
 include "petscdmshell.pxi"
+include "petscdmlabel.pxi"
+include "petscdmswarm.pxi"
 include "petscpartitioner.pxi"
-include "petsclinesearch.pxi"
 
 # --------------------------------------------------------------------
 
@@ -166,6 +163,8 @@ include "Random.pyx"
 include "IS.pyx"
 include "SF.pyx"
 include "Vec.pyx"
+include "DT.pyx"
+include "FE.pyx"
 include "Scatter.pyx"
 include "Section.pyx"
 include "Mat.pyx"
@@ -182,6 +181,8 @@ include "DMPlex.pyx"
 include "DMStag.pyx"
 include "DMComposite.pyx"
 include "DMShell.pyx"
+include "DMLabel.pyx"
+include "DMSwarm.pyx"
 include "Partitioner.pyx"
 
 # --------------------------------------------------------------------
@@ -201,15 +202,15 @@ cdef object tracebacklist = []
 
 cdef int traceback(MPI_Comm       comm,
                    int            line,
-                   const_char    *cfun,
-                   const_char    *cfile,
+                   const char    *cfun,
+                   const char    *cfile,
                    int            n,
                    PetscErrorType p,
-                   const_char    *mess,
+                   const char    *mess,
                    void          *ctx) with gil:
     cdef PetscLogDouble mem=0
     cdef PetscLogDouble rss=0
-    cdef const_char    *text=NULL
+    cdef const char    *text=NULL
     global tracebacklist
     cdef object tbl = tracebacklist
     fun = bytes2str(cfun)
@@ -237,11 +238,11 @@ cdef int traceback(MPI_Comm       comm,
 cdef int PetscPythonErrorHandler(
     MPI_Comm       comm,
     int            line,
-    const_char    *cfun,
-    const_char    *cfile,
+    const char    *cfun,
+    const char    *cfile,
     int            n,
     PetscErrorType p,
-    const_char    *mess,
+    const char    *mess,
     void          *ctx) nogil:
     global tracebacklist
     if Py_IsInitialized() and (<void*>tracebacklist) != NULL:
@@ -373,6 +374,8 @@ cdef extern from *:
     PetscClassId PETSC_DM_CLASSID          "DM_CLASSID"
     PetscClassId PETSC_DS_CLASSID          "PETSCDS_CLASSID"
     PetscClassId PETSC_PARTITIONER_CLASSID "PETSCPARTITIONER_CLASSID"
+    PetscClassId PETSC_FE_CLASSID          "PETSCFE_CLASSID"
+    PetscClassId PETSC_DMLABEL_CLASSID     "DMLABEL_CLASSID"
 
 cdef bint registercalled = 0
 
@@ -422,6 +425,8 @@ cdef int register() except -1:
     PyPetscType_Register(PETSC_DM_CLASSID,          DM)
     PyPetscType_Register(PETSC_DS_CLASSID,          DS)
     PyPetscType_Register(PETSC_PARTITIONER_CLASSID, Partitioner)
+    PyPetscType_Register(PETSC_FE_CLASSID,          FE)
+    PyPetscType_Register(PETSC_DMLABEL_CLASSID,     DMLabel)
     return 0 # and we are done, enjoy !!
 
 # --------------------------------------------------------------------

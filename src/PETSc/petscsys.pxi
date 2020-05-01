@@ -1,6 +1,13 @@
 cdef extern from * nogil:
 
-    const_char PETSC_AUTHOR_INFO[]
+    ctypedef enum PetscDataType:
+        PETSC_INT
+        PETSC_REAL
+        PETSC_SCALAR
+        PETSC_COMPLEX
+        PETSC_DATATYPE_UNKNOWN
+
+    const char PETSC_AUTHOR_INFO[]
     int PetscGetVersion(char[],size_t)
     int PetscGetVersionNumber(PetscInt*,PetscInt*,PetscInt*,PetscInt*)
 
@@ -24,7 +31,8 @@ cdef extern from * nogil:
     int PetscPushErrorHandler(PetscErrorHandlerFunction,void*)
     int PetscPopErrorHandler()
     int PetscPopSignalHandler()
-    int PetscInfoAllow(PetscBool, char*)
+    int PetscInfoAllow(PetscBool)
+    int PetscInfoSetFile(char*,char*)
 
     int PetscErrorMessage(int,char*[],char**)
 

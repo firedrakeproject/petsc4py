@@ -39,6 +39,9 @@ class TSRKType(object):
     RK5F  = S_(TSRK5F)
     RK5DP = S_(TSRK5DP)
     RK5BS = S_(TSRK5BS)
+    RK6VR = S_(TSRK6VR)
+    RK7VR = S_(TSRK7VR)
+    RK8VR = S_(TSRK8VR)
 
 class TSARKIMEXType(object):
     ARKIMEX1BEE   = S_(TSARKIMEX1BEE)
@@ -185,12 +188,12 @@ cdef class TS(Object):
         return eqtype
 
     def setOptionsPrefix(self, prefix):
-        cdef const_char *cval = NULL
+        cdef const char *cval = NULL
         prefix = str2bytes(prefix, &cval)
         CHKERR( TSSetOptionsPrefix(self.ts, cval) )
 
     def getOptionsPrefix(self):
-        cdef const_char *cval = NULL
+        cdef const char *cval = NULL
         CHKERR( TSGetOptionsPrefix(self.ts, &cval) )
         return bytes2str(cval)
 
@@ -709,6 +712,18 @@ cdef class TS(Object):
             vm = [ref_Vec(vecm[i]) for i from 0 <= i < n]
         return (vl, vm)
 
+    def setRHSJacobianP(self, jacobianp, Mat A=None, args=None, kargs=None):
+        cdef PetscMat Amat=NULL
+        if A is not None: Amat = A.mat
+        if jacobianp is not None:
+            if args  is None: args  = ()
+            if kargs is None: kargs = {}
+            context = (jacobianp, args, kargs)
+            self.set_attr('__rhsjacobianp__', context)
+            CHKERR( TSSetRHSJacobianP(self.ts, Amat, TS_RHSJacobianP, <void*>context) )
+        else:
+            CHKERR( TSSetRHSJacobianP(self.ts, Amat, NULL, NULL) )
+
     def createQuadratureTS(self, forward=True):
         cdef TS qts = TS()
         cdef PetscBool fwd = forward
@@ -774,7 +789,7 @@ cdef class TS(Object):
         else: return <object> context
 
     def setPythonType(self, py_type):
-        cdef const_char *cval = NULL
+        cdef const char *cval = NULL
         py_type = str2bytes(py_type, &cval)
         CHKERR( TSPythonSetType(self.ts, cval) )
 

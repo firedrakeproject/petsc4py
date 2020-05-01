@@ -53,7 +53,6 @@ cdef extern from * nogil:
     ctypedef long   PetscInt
     ctypedef double PetscReal
     ctypedef double PetscScalar
-    PetscReal PetscMin(PetscReal,PetscReal)
 
     ctypedef struct _p_PetscObject:
         MPI_Comm comm
@@ -89,6 +88,20 @@ cdef inline PetscReal   asReal(object value) except?-1: return value
 cdef extern from "scalar.h":
     object      toScalar"PyPetscScalar_FromPetscScalar"(PetscScalar)
     PetscScalar asScalar"PyPetscScalar_AsPetscScalar"(object) except*
+
+# --------------------------------------------------------------------
+
+# NumPy support
+# -------------
+
+cdef extern from "string.h"  nogil:
+    void* memset(void*,int,size_t)
+    void* memcpy(void*,void*,size_t)
+    char* strdup(char*)
+
+include "arraynpy.pxi"
+
+import_array()
 
 # --------------------------------------------------------------------
 
@@ -243,16 +256,14 @@ cdef inline TS TS_(PetscTS p):
 
 # --------------------------------------------------------------------
 
-cdef extern from *:
-    ctypedef char const_char "const char"
-
-cdef inline object bytes2str(const_char p[]):
-    if p == NULL: return None
-    cdef bytes s = <char*>p
-    if not isinstance(s, str):
-        return s.decode()
-    else:
-        return s
+cdef inline object bytes2str(const char p[]):
+     if p == NULL:
+         return None
+     cdef bytes s = <char*>p
+     if isinstance(s, str):
+         return s
+     else:
+         return s.decode()
 
 cdef object parse_url(object url):
     path, name = url.rsplit(":", 1)
@@ -470,6 +481,7 @@ cdef extern from * nogil:
         PetscErrorCode (*assemblybegin)(PetscMat,MatAssemblyType) except IERR
         PetscErrorCode (*assemblyend)(PetscMat,MatAssemblyType) except IERR
         PetscErrorCode (*zeroentries)(PetscMat) except IERR
+        PetscErrorCode (*zerorowscolumns)(PetscMat,PetscInt,PetscInt*,PetscScalar,PetscVec,PetscVec) except IERR
         PetscErrorCode (*scale)(PetscMat,PetscScalar) except IERR
         PetscErrorCode (*shift)(PetscMat,PetscScalar) except IERR
         PetscErrorCode (*sor)(PetscMat,PetscVec,PetscReal,MatSORType,PetscReal,PetscInt,PetscInt,PetscVec) except IERR
@@ -556,6 +568,7 @@ cdef PetscErrorCode MatCreate_Python(
     ops.assemblybegin     = MatAssemblyBegin_Python
     ops.assemblyend       = MatAssemblyEnd_Python
     ops.zeroentries       = MatZeroEntries_Python
+    ops.zerorowscolumns   = MatZeroRowsColumns_Python
     ops.scale             = MatScale_Python
     ops.shift             = MatShift_Python
     ops.getvecs           = MatCreateVecs_Python
@@ -798,6 +811,22 @@ cdef PetscErrorCode MatZeroEntries_Python(
     cdef zeroEntries = PyMat(mat).zeroEntries
     if zeroEntries is None: return UNSUPPORTED(b"zeroEntries")
     zeroEntries(Mat_(mat))
+    return FunctionEnd()
+
+cdef PetscErrorCode MatZeroRowsColumns_Python(
+    PetscMat mat,
+    PetscInt numRows,
+    const PetscInt* rows,
+    PetscScalar diag,
+    PetscVec x,
+    PetscVec b,
+    ) \
+    except IERR with gil:
+    FunctionBegin(b"MatZeroRowsColumns_Python")
+    cdef zeroRowsColumns = PyMat(mat).zeroRowsColumns
+    if zeroRowsColumns is None: return UNSUPPORTED(b"zeroRowsColumns")
+    cdef ndarray pyrows = array_i(numRows, rows)
+    zeroRowsColumns(Mat_(mat), pyrows, toScalar(diag), Vec_(x), Vec_(b))
     return FunctionEnd()
 
 cdef PetscErrorCode MatScale_Python(
@@ -2502,7 +2531,7 @@ cdef PetscErrorCode TSStep_Python_default(
 
 cdef PetscErrorCode PetscPythonMonitorSet_Python(
     PetscObject obj_p,
-    const_char *url_p,
+    const char *url_p,
     ) \
     except IERR with gil:
     FunctionBegin(b"PetscPythonMonitorSet_Python")
@@ -2534,11 +2563,11 @@ cdef PetscErrorCode PetscPythonMonitorSet_Python(
 
 cdef extern from * nogil:
 
-  char* MATPYTHON  '"python"'
-  char* KSPPYTHON  '"python"'
-  char* PCPYTHON   '"python"'
-  char* SNESPYTHON '"python"'
-  char* TSPYTHON   '"python"'
+  const char* MATPYTHON  '"python"'
+  const char* KSPPYTHON  '"python"'
+  const char* PCPYTHON   '"python"'
+  const char* SNESPYTHON '"python"'
+  const char* TSPYTHON   '"python"'
 
   ctypedef PetscErrorCode MatCreateFunction  (PetscMat)  except IERR
   ctypedef PetscErrorCode PCCreateFunction   (PetscPC)   except IERR
@@ -2546,14 +2575,14 @@ cdef extern from * nogil:
   ctypedef PetscErrorCode SNESCreateFunction (PetscSNES) except IERR
   ctypedef PetscErrorCode TSCreateFunction   (PetscTS)   except IERR
 
-  PetscErrorCode MatRegister  (char[],MatCreateFunction* )
-  PetscErrorCode PCRegister   (char[],PCCreateFunction*  )
-  PetscErrorCode KSPRegister  (char[],KSPCreateFunction* )
-  PetscErrorCode SNESRegister (char[],SNESCreateFunction*)
-  PetscErrorCode TSRegister   (char[],TSCreateFunction*  )
+  PetscErrorCode MatRegister  (const char[],MatCreateFunction* )
+  PetscErrorCode PCRegister   (const char[],PCCreateFunction*  )
+  PetscErrorCode KSPRegister  (const char[],KSPCreateFunction* )
+  PetscErrorCode SNESRegister (const char[],SNESCreateFunction*)
+  PetscErrorCode TSRegister   (const char[],TSCreateFunction*  )
 
   PetscErrorCode (*PetscPythonMonitorSet_C) \
-      (PetscObject, const_char[]) except IERR
+      (PetscObject, const char[]) except IERR
 
 
 cdef public PetscErrorCode PetscPythonRegisterAll() except IERR:
