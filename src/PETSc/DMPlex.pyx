@@ -147,7 +147,7 @@ cdef class DMPlex(DM):
 
     def createSubpointIS(self):
         cdef IS iset = IS()
-        CHKERR( DMPlexCreateSubpointIS(self.dm, &iset.iset) )
+        CHKERR( DMPlexGetSubpointIS(self.dm, &iset.iset) )
         return iset
 
     def getChart(self):
