@@ -131,7 +131,7 @@ cdef class DMPlex(DM):
         cdef PetscDMPlexSubmeshType csubmeshType = {'DMPLEX_SUBMESH_CLOSURE': DMPLEX_SUBMESH_CLOSURE,
                                                     'DMPLEX_SUBMESH_HYPERSURFACE': DMPLEX_SUBMESH_HYPERSURFACE,
                                                     'DMPLEX_SUBMESH_USER': DMPLEX_SUBMESH_USER}[submeshType]
-        cdef const_char *cfilterName = NULL
+        cdef const char *cfilterName = NULL
         _ = str2bytes(filterName, &cfilterName)
         cdef PetscDMLabel cfilter = NULL
         CHKERR( DMGetLabel(self.dm, cfilterName, &cfilter) )
