@@ -145,7 +145,7 @@ cdef class DMPlex(DM):
         CHKERR( DMPlexCreateSubmesh(self.dm, csubmeshType, cfilter, cfilterValue, cheight, cisCohesive, cmarkedFaces, chasLagrange, NULL, NULL, cisLocal, &subdm.dm) )
         return subdm
 
-    def createSubpointIS(self):
+    def getSubpointIS(self):
         cdef IS iset = IS()
         CHKERR( DMPlexGetSubpointIS(self.dm, &iset.iset) )
         PetscINCREF(iset.obj)
