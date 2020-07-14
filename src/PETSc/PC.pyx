@@ -291,6 +291,10 @@ cdef class PC(Object):
         cdef PetscInt ival = asInt(overlap)
         CHKERR( PCASMSetOverlap(self.pc, ival) )
 
+    def setASMMatType(self, mattype):
+        cdef PetscMatType cval = mattype
+        CHKERR( PCASMSetSubMatType(self.pc, cval) )
+
     def setASMLocalSubdomains(self, nsd, is_=None, is_local=None):
         cdef PetscInt n = asInt(nsd)
         cdef PetscInt i = 0

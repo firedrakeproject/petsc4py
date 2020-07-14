@@ -157,6 +157,7 @@ cdef extern from * nogil:
 
     int PCASMSetType(PetscPC,PetscPCASMType)
     int PCASMSetOverlap(PetscPC,PetscInt)
+    int PCASMSetSubMatType(PetscPC, PetscMatType)
     int PCASMSetLocalSubdomains(PetscPC,PetscInt,PetscIS[],PetscIS[])
     int PCASMSetTotalSubdomains(PetscPC,PetscInt,PetscIS[],PetscIS[])
     int PCASMGetSubKSP(PetscPC,PetscInt*,PetscInt*,PetscKSP*[])
