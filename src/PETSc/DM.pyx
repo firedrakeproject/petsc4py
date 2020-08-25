@@ -413,13 +413,13 @@ cdef class DM(Object):
 
     def adaptMetric(self, Vec metric, bdlabel=None, rglabel=None):
 	    # boundary tags
-        cdef const_char *cval = NULL
+        cdef const char *cval = NULL
         cdef PetscDMLabel cbdlbl = NULL
         label = str2bytes(bdlabel, &cval)
         if cval == NULL: cval = b"" # XXX Should be fixed upstream
         CHKERR( DMGetLabel(self.dm, cval, &cbdlbl) )
 		# cell tags
-        cdef const_char *cval2 = NULL
+        cdef const char *cval2 = NULL
         cdef PetscDMLabel crglbl = NULL
         label = str2bytes(rglabel, &cval2)
         if cval2 == NULL: cval2 = b"" # XXX Should be fixed upstream
